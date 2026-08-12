@@ -1,0 +1,34 @@
+schema_version = 1
+
+[robot]
+name = "sh_dog"
+source_urdf = "raw/urdf/urdf-v2-2.urdf"
+source_robot_name = "urdf-v2-2"
+joint_order = [
+    "fl_abad_joint",
+    "fl_hip_joint",
+    "fl_knee_joint",
+    "fr_abad_joint",
+    "fr_hip_joint",
+    "fr_knee_joint",
+    "rl_abad_joint",
+    "rl_hip_joint",
+    "rl_knee_joint",
+    "rr_abad_joint",
+    "rr_hip_joint",
+    "rr_knee_joint",
+]
+
+[actuator]
+model = "ROBOstride 06"
+rated_torque_nm = 11.0
+peak_torque_nm = 36.0
+no_load_speed_rpm = 480.0
+
+[additional_reduction]
+abad = 1.0
+hip = 1.0
+knee = 2.0
+
+[normalization.joint_renames]
+fl_foot_joinf = "fl_foot_joint"
