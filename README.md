@@ -27,13 +27,13 @@ checkpoint、定量诊断和策略导出。
 在已配置好的 `sh_dog` 环境中执行：
 
 ```bash
-python -m pip install --no-deps --editable source/sh_dog
+python -m pip install --no-deps --editable training/source/sh_dog
 ```
 
 ## 验证任务注册
 
 ```bash
-python scripts/list_envs.py
+python training/scripts/list_envs.py
 ```
 
 预期只列出 `ShDog-Template-v0`。
@@ -63,7 +63,8 @@ docker compose -f docker/compose.train.yaml build \
 
 ```bash
 docker compose -f docker/compose.train.yaml run --rm train \
-  '/workspace/isaaclab/isaaclab.sh -p scripts/list_envs.py --keyword ShDog'
+  '/workspace/isaaclab/isaaclab.sh -p \
+    /workspace/sh_dog/training/scripts/list_envs.py --keyword ShDog'
 ```
 
 正式训练可按服务器资源提高共享内存上限：
@@ -74,7 +75,9 @@ SH_DOG_SHM_SIZE=8gb docker compose -f docker/compose.train.yaml run --rm train \
 ```
 
 Dockerfile、基础镜像摘要和构建末尾的版本断言共同定义训练软件环境。代理地址、镜像仓库认证
-和服务器资源属于运行环境，不写入工程。
+和服务器资源属于运行环境，不写入工程。训练日志、Hydra 输出和 checkpoint 写入
+`artifacts/training/`，不混入源码目录；跨环境只导出 `artifacts/policies/` 中的
+TorchScript/ONNX 策略包。
 
 ## 约定
 

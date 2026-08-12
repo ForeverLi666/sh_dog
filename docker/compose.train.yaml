@@ -16,11 +16,9 @@ services:
       ACCEPT_EULA: "Y"
       PRIVACY_CONSENT: ${PRIVACY_CONSENT:-Y}
       PYTHONUNBUFFERED: "1"
-      PYTHONPATH: /workspace/sh_dog/source/sh_dog
+      PYTHONPATH: /workspace/sh_dog/training/source/sh_dog
 
-    working_dir: /workspace/sh_dog
-    entrypoint: ["/bin/bash", "-lc"]
-    command: ["exec bash"]
+    entrypoint: ["/bin/bash", "/workspace/sh_dog/docker/entrypoint.train.sh"]
 
     volumes:
       - type: bind

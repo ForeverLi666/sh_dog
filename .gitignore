@@ -41,6 +41,8 @@ docker/.container.cfg
 **/wandb/*
 **/.neptune/*
 docker/artifacts/
+/artifacts/*
+!/artifacts/README.md
 *.tmp
 
 # Doc Outputs

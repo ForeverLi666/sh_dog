@@ -102,7 +102,7 @@ docstring-code-format = true
 
 [tool.pyright]
 
-include = ["source", "scripts"]
+include = ["training/source", "training/scripts"]
 exclude = [
     "**/__pycache__",
     "**/_isaac_sim",
