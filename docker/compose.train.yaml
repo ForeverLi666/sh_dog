@@ -1,0 +1,28 @@
+name: sh-dog
+
+services:
+  train:
+    image: ${SH_DOG_TRAIN_IMAGE:-sh-dog:train}
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.train
+      target: training
+      network: host
+
+    gpus: all
+    shm_size: ${SH_DOG_SHM_SIZE:-2gb}
+
+    environment:
+      ACCEPT_EULA: "Y"
+      PRIVACY_CONSENT: ${PRIVACY_CONSENT:-Y}
+      PYTHONUNBUFFERED: "1"
+      PYTHONPATH: /workspace/sh_dog/source/sh_dog
+
+    working_dir: /workspace/sh_dog
+    entrypoint: ["/bin/bash", "-lc"]
+    command: ["exec bash"]
+
+    volumes:
+      - type: bind
+        source: ..
+        target: /workspace/sh_dog

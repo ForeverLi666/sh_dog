@@ -1,0 +1,71 @@
+# syntax=docker/dockerfile:1.7
+
+ARG ISAAC_SIM_IMAGE=nvcr.io/nvidia/isaac-sim
+ARG ISAAC_SIM_DIGEST=sha256:f3563cb2ba0c18af0b2fb321360dcb73a917b899f879e3213623d6bee484fa54
+
+FROM ${ISAAC_SIM_IMAGE}@${ISAAC_SIM_DIGEST} AS foundation
+
+ARG ISAAC_LAB_REPOSITORY=https://github.com/isaac-sim/IsaacLab.git
+ARG ISAAC_LAB_COMMIT=37ddf626871758333d6ed89cf64ad702aef127d0
+
+ENV ACCEPT_EULA=Y \
+    OMNI_KIT_ALLOW_ROOT=1 \
+    ISAAC_SIM_PATH=/isaac-sim \
+    ISAACLAB_PATH=/workspace/isaaclab
+
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
+USER root
+
+RUN --mount=type=cache,target=/var/cache/apt \
+    apt-get update && \
+    apt-get install --yes --no-install-recommends \
+        build-essential \
+        cmake \
+        git \
+        libglib2.0-0 \
+        ncurses-term \
+        wget && \
+    rm -rf /var/lib/apt/lists/*
+
+RUN git init "${ISAACLAB_PATH}" && \
+    git -C "${ISAACLAB_PATH}" remote add origin "${ISAAC_LAB_REPOSITORY}" && \
+    git -C "${ISAACLAB_PATH}" fetch --depth 1 origin "${ISAAC_LAB_COMMIT}" && \
+    git -C "${ISAACLAB_PATH}" checkout --detach FETCH_HEAD && \
+    test "$(git -C "${ISAACLAB_PATH}" rev-parse HEAD)" = "${ISAAC_LAB_COMMIT}" && \
+    ln -s "${ISAAC_SIM_PATH}" "${ISAACLAB_PATH}/_isaac_sim"
+
+WORKDIR ${ISAACLAB_PATH}
+
+FROM foundation AS training
+
+# flatdict 4.0.1 requires pkg_resources during its build.
+RUN --mount=type=cache,target=/root/.cache/pip \
+    "${ISAACLAB_PATH}/isaaclab.sh" -p -m pip install \
+        "toml==0.10.2" \
+        "setuptools==80.9.0" \
+        "wheel==0.45.1" && \
+    "${ISAACLAB_PATH}/isaaclab.sh" -p -m pip install \
+        --no-build-isolation \
+        "flatdict==4.0.1"
+
+RUN --mount=type=cache,target=/var/cache/apt \
+    "${ISAACLAB_PATH}/isaaclab.sh" -p \
+        "${ISAACLAB_PATH}/tools/install_deps.py" apt \
+        "${ISAACLAB_PATH}/source" && \
+    rm -rf /var/lib/apt/lists/*
+
+RUN --mount=type=cache,target=/root/.cache/pip \
+    "${ISAACLAB_PATH}/isaaclab.sh" --install rsl_rl
+
+RUN "${ISAACLAB_PATH}/isaaclab.sh" -p - <<'PY'
+from importlib.metadata import version
+
+import gymnasium
+import rsl_rl
+
+assert version("isaaclab") == "0.54.2"
+assert version("isaaclab-rl") == "0.4.7"
+assert version("rsl-rl-lib") == "3.1.2"
+assert gymnasium.__version__ == "1.2.1"
+PY

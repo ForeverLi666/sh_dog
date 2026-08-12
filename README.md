@@ -13,7 +13,8 @@ sim2sim、实机 sim2real 与共享 C++ policy runtime 在同一仓库内保持�
 - PhysX
 
 本机 Conda 环境名为 `sh_dog`，Isaac Lab 源码位于
-`/home/lyh/sh_dog_isaaclab`。正式训练环境与本机环境必须保持相同技术栈。
+`/home/lyh/sh_dog_isaaclab`。本机用于资产验证、小规模冒烟和可视化；Docker 用于正式训练、
+checkpoint、定量诊断和策略导出。
 
 ## 当前状态
 
@@ -36,6 +37,44 @@ python scripts/list_envs.py
 ```
 
 预期只列出 `ShDog-Template-v0`。
+
+## Docker 训练环境
+
+无代理时构建训练镜像：
+
+```bash
+docker compose -f docker/compose.train.yaml build train
+```
+
+需要代理时由构建机器提供，不在工程中固定代理地址：
+
+```bash
+HTTP_PROXY=http://127.0.0.1:7897 \
+HTTPS_PROXY=http://127.0.0.1:7897 \
+NO_PROXY=localhost,127.0.0.1 \
+docker compose -f docker/compose.train.yaml build \
+  --build-arg HTTP_PROXY \
+  --build-arg HTTPS_PROXY \
+  --build-arg NO_PROXY \
+  train
+```
+
+验证容器内的任务注册：
+
+```bash
+docker compose -f docker/compose.train.yaml run --rm train \
+  '/workspace/isaaclab/isaaclab.sh -p scripts/list_envs.py --keyword ShDog'
+```
+
+正式训练可按服务器资源提高共享内存上限：
+
+```bash
+SH_DOG_SHM_SIZE=8gb docker compose -f docker/compose.train.yaml run --rm train \
+  '<training-command>'
+```
+
+Dockerfile、基础镜像摘要和构建末尾的版本断言共同定义训练软件环境。代理地址、镜像仓库认证
+和服务器资源属于运行环境，不写入工程。
 
 ## 约定
 
