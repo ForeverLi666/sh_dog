@@ -3,6 +3,9 @@
 本文定义 `sh_dog` 在训练、sim2sim 和 sim2real 中共用的模型语义。原始 CAD 导出文件保存在
 `assets/sh_dog/raw/`，永久保持不变。
 
+规范化模型位于 `assets/sh_dog/urdf/sh_dog.urdf`，由 `tools/normalize_urdf.py` 生成并提交 Git。
+它直接引用 raw STL，不维护 mesh 副本。任何模型变更都先修改 raw 输入或 `model.toml`，再重新生成。
+
 ## 坐标系
 
 模型采用右手坐标系：
@@ -51,8 +54,7 @@ rr_knee_joint
 
 - 将机器人名 `urdf-v2-2` 改为 `sh_dog`；
 - 将误拼写 `fl_foot_joinf` 改为 `fl_foot_joint`；
-- 将 mesh 文件扩展名统一为小写 `.stl`；
-- 将 mesh URI 改为规范化资产包内的相对路径；
+- 将 mesh URI 改为指向唯一 raw STL 的相对路径；
 - 统一 XML 格式，不改变数值精度表达的物理含义。
 
 在没有明确依据时，不得修改：
@@ -81,3 +83,9 @@ rr_knee_joint
 
 原始规格与额外传动比只在 `assets/sh_dog/model.toml` 中编辑，资产生成工具据此计算关节侧数值并
 写入规范化 URDF，不在训练配置和部署配置中重复手工维护。
+
+## 碰撞体状态
+
+当前规范化 URDF 仍使用 CAD mesh collision，只适合结构验证。下一步根据 ShDog 实际尺寸生成最少
+数量的 box、cylinder 和 sphere，并通过可视叠加、全关节范围自碰撞和 Isaac Lab 落地测试验收。
+Go2 等成熟模型只用于参考 primitive 选择和拆分方式，不复用尺寸。

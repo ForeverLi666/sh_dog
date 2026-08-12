@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import argparse
 import math
-import shutil
+import os
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Any
@@ -19,13 +19,14 @@ except ModuleNotFoundError:
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_CONFIG = REPO_ROOT / "assets/sh_dog/model.toml"
-DEFAULT_OUTPUT = REPO_ROOT / "artifacts/assets/sh_dog"
+DEFAULT_OUTPUT = REPO_ROOT / "assets/sh_dog/urdf"
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
+    parser.add_argument("--check", action="store_true", help="verify the committed URDF is current")
     return parser.parse_args()
 
 
@@ -69,7 +70,7 @@ def build_joint_limits(config: dict[str, Any]) -> dict[str, tuple[float, float]]
     return limits
 
 
-def normalize(config_path: Path, output_dir: Path) -> Path:
+def normalize(config_path: Path, output_dir: Path, *, check: bool = False) -> Path:
     config_path = config_path.resolve()
     output_dir = output_dir.resolve()
     config = load_config(config_path)
@@ -106,39 +107,42 @@ def normalize(config_path: Path, output_dir: Path) -> Path:
         limit.set("effort", format_number(effort))
         limit.set("velocity", format_number(velocity))
 
-    output_mesh_dir = output_dir / "meshes"
-    output_mesh_dir.mkdir(parents=True, exist_ok=True)
     mesh_count = 0
-    copied_meshes: set[str] = set()
+    referenced_meshes: set[str] = set()
     for mesh in robot.findall(".//mesh"):
         source_uri = mesh.get("filename")
         if source_uri is None:
             raise ValueError("mesh is missing filename")
         source_name = Path(source_uri).name
-        normalized_name = Path(source_name).with_suffix(".stl").name
         source_mesh = source_mesh_dir / source_name
         if not source_mesh.is_file():
             raise FileNotFoundError(source_mesh)
-        if normalized_name not in copied_meshes:
-            shutil.copyfile(source_mesh, output_mesh_dir / normalized_name)
-            copied_meshes.add(normalized_name)
-        mesh.set("filename", f"meshes/{normalized_name}")
+        referenced_meshes.add(source_name)
+        relative_mesh = Path(os.path.relpath(source_mesh, output_dir)).as_posix()
+        mesh.set("filename", relative_mesh)
         mesh_count += 1
 
     ET.indent(tree, space="  ")
     output_urdf = output_dir / f"{robot_config['name']}.urdf"
-    tree.write(output_urdf, encoding="utf-8", xml_declaration=True)
+    output_bytes = ET.tostring(tree.getroot(), encoding="utf-8", xml_declaration=True)
+    if check:
+        if not output_urdf.is_file() or output_urdf.read_bytes() != output_bytes:
+            raise RuntimeError(f"normalized URDF is missing or stale: {output_urdf}")
+    else:
+        output_dir.mkdir(parents=True, exist_ok=True)
+        output_urdf.write_bytes(output_bytes)
 
     print(f"urdf={output_urdf}")
+    print(f"status={'current' if check else 'generated'}")
     print(f"actuated_joints={len(actuated_joints)}")
     print(f"mesh_references={mesh_count}")
-    print(f"unique_meshes={len(copied_meshes)}")
+    print(f"unique_meshes={len(referenced_meshes)}")
     return output_urdf
 
 
 def main() -> None:
     args = parse_args()
-    normalize(args.config, args.output)
+    normalize(args.config, args.output, check=args.check)
 
 
 if __name__ == "__main__":

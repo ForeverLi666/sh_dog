@@ -1,13 +1,22 @@
 # ShDog 资产
 
-`model.toml` 是机器人名称、执行器规格、额外传动比和标准关节集合的机器可读来源。原始 CAD
-导出位于 `raw/`，不得直接修改。
-
-在仓库根目录使用项目约定的 Python 3.11 环境生成规范化 URDF：
-
-```bash
-conda activate sh_dog
-python tools/normalize_urdf.py
+```text
+sh_dog/
+├── model.toml             # 规范化配置
+├── raw/                   # 不修改的 CAD 导出输入
+│   ├── urdf/
+│   └── meshes/            # 唯一一套 STL
+└── urdf/sh_dog.urdf       # 生成并提交的共享模型
 ```
 
-输出位于 `artifacts/assets/sh_dog/`，不提交 Git，可随时由原始资产和配置重新生成。
+`model.toml` 是机器人名称、执行器规格、传动比和关节顺序的机器可读来源。`raw/` 保持原始内容；
+`urdf/sh_dog.urdf` 由工具生成，供训练和部署共同使用，不手工修改。
+
+在仓库根目录生成或检查模型：
+
+```bash
+python tools/normalize_urdf.py
+python tools/normalize_urdf.py --check
+```
+
+规范化 URDF 直接引用 `raw/meshes/`，不复制 STL。提交资产变更前必须执行 `--check`。

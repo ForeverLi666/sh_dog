@@ -18,9 +18,9 @@ checkpoint、定量诊断和策略导出。
 
 ## 当前状态
 
-当前仅保留 Isaac Lab 官方 external project template 的 manager-based 单智能体
-骨架。`ShDog-Template-v0` 仍是 Cartpole 占位任务，只用于验证项目注册与运行链路，
-不得作为四足训练基线。
+Isaac Lab 子工程当前仍是 manager-based Cartpole 占位任务，只用于验证注册与运行链路，不得作为
+四足训练基线。机器人 raw 资产和规范化 URDF 已纳入 `assets/sh_dog/`；primitive collision、正式
+四足任务、策略包和部署 runtime 尚未实现。当前进度与下一步见 `docs/handoff.md`。
 
 ## 安装扩展
 
@@ -83,7 +83,7 @@ TorchScript/ONNX 策略包。
 
 - 文档使用中文，代码与配置字段使用英文。
 - 原始 CAD URDF 永久保存且不直接修改。
-- URDF 规范化、USD/MJCF 生成及 Python/C++ 配置生成必须可复现。
+- 规范化 URDF 提交 Git 但不手工修改；USD/MJCF 及语言侧配置必须可复现生成。
 - RSL-RL checkpoint 不跨环境传递；跨环境只传 TorchScript/ONNX 策略包。
 - 当前 `fastapi==0.115.7` 与 `starlette==0.49.1` 存在已知上游元数据冲突；
   本工程不启用 Isaac Sim HTTP services 或云端 livestream。
