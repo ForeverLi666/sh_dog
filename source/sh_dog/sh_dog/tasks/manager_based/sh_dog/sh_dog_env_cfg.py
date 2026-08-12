@@ -32,8 +32,8 @@ from isaaclab_assets.robots.cartpole import CARTPOLE_CFG  # isort:skip
 
 
 @configclass
-class ShDogSceneCfg(InteractiveSceneCfg):
-    """Configuration for a cart-pole scene."""
+class ShDogTemplateSceneCfg(InteractiveSceneCfg):
+    """Temporary Cartpole scene used to validate the project integration."""
 
     # ground plane
     ground = AssetBaseCfg(
@@ -156,9 +156,11 @@ class TerminationsCfg:
 
 
 @configclass
-class ShDogEnvCfg(ManagerBasedRLEnvCfg):
+class ShDogTemplateEnvCfg(ManagerBasedRLEnvCfg):
+    """Temporary Cartpole environment used before the quadruped asset is available."""
+
     # Scene settings
-    scene: ShDogSceneCfg = ShDogSceneCfg(num_envs=4096, env_spacing=4.0)
+    scene: ShDogTemplateSceneCfg = ShDogTemplateSceneCfg(num_envs=4096, env_spacing=4.0)
     # Basic settings
     observations: ObservationsCfg = ObservationsCfg()
     actions: ActionsCfg = ActionsCfg()
