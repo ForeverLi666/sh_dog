@@ -45,6 +45,9 @@ rr_hip_joint
 rr_knee_joint
 ```
 
+实机稳定站姿按上述顺序为每条腿 `(0.0, 0.79, -1.51) rad`，名义 base 高度为 `0.40 m`。
+这些值保存在 `assets/sh_dog/model.toml`，训练配置引用它们，不另行手工维护。
+
 实机协议和仿真后端可以使用不同的内部顺序，但必须通过名称显式映射到该顺序。进入策略运行时的
 数据必须已经符合该关节顺序和关节侧约定。
 
@@ -105,3 +108,9 @@ ShDog STL 与关节坐标，不复用 Go2 数值。visual 继续使用 STL；质
 当前已通过 visual/collision 局部叠加、代表性站立与下蹲姿态自碰撞检查，以及 Isaac Sim 5.1 URDF
 导入。接近关节极限的姿态仍可能发生真实的相邻腿段接触；正式训练前应结合默认姿态和启用的
 self-collision 策略完成落地仿真验收。
+
+## 后端资产
+
+Isaac Sim USD 固定生成到 `assets/sh_dog/usd/`，由 `tools/build_usd.py` 转换，不提交 Git。转换保留
+fixed joint，不写入任意 PD 参数；训练侧负责定义驱动器。USD 仅是 Isaac Sim 后端资产，不是模型
+事实来源。

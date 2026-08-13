@@ -19,6 +19,16 @@ joint_order = [
     "rr_knee_joint",
 ]
 
+[default_state]
+# Stable real-robot stance in standard joint order.
+joint_positions_rad = [
+    0.0, 0.79, -1.51,
+    0.0, 0.79, -1.51,
+    0.0, 0.79, -1.51,
+    0.0, 0.79, -1.51,
+]
+base_height_m = 0.40
+
 [actuator]
 model = "ROBOstride 06"
 rated_torque_nm = 11.0

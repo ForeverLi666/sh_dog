@@ -12,12 +12,13 @@
 - `model.toml` 定义名称、关节顺序、执行器规格和额外传动比。
 - `assets/sh_dog/urdf/sh_dog.urdf` 可复现生成、提交 Git，并由训练和部署共享。
 - `model.toml` 定义每类 link 的最小 primitive collision，四腿由生成器镜像。
+- 实机稳定站姿为每腿 `(0.0, 0.79, -1.51) rad`，名义 base 高度为 `0.40 m`。
 
 ## 当前边界
 
 - raw 资产不修改；规范化 URDF 不手工修改。
 - collision 已完成结构简化和导入验证，尚未结合正式任务完成落地接触验收。
-- USD、MJCF、正式四足任务、策略包和 C++ 部署均未开始。
+- Isaac Sim USD 可生成到 `assets/sh_dog/usd/`；MJCF、正式四足任务、策略包和 C++ 部署均未开始。
 - `artifacts/` 只保存不提交的日志、checkpoint、临时结果和策略包。
 
 ## 下一步
@@ -32,6 +33,7 @@
 ```bash
 git status --short
 python tools/normalize_urdf.py --check
+python tools/build_usd.py
 python training/scripts/list_envs.py
 ```
 

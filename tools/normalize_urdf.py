@@ -123,11 +123,17 @@ def normalize(config_path: Path, output_dir: Path, *, check: bool = False) -> Pa
     if [joint.get("name") for joint in actuated_joints] != robot_config["joint_order"]:
         raise ValueError("actuated joint order in source URDF does not match model config")
 
-    for joint in actuated_joints:
+    default_q = config["default_state"]["joint_positions_rad"]
+    if len(default_q) != len(actuated_joints) or float(config["default_state"]["base_height_m"]) <= 0.0:
+        raise ValueError("invalid default state")
+
+    for joint, position in zip(actuated_joints, default_q, strict=True):
         joint_name = joint.get("name")
         limit = joint.find("limit")
         if joint_name is None or limit is None:
             raise ValueError("actuated joint is missing a name or limit")
+        if not float(limit.get("lower", "-inf")) <= float(position) <= float(limit.get("upper", "inf")):
+            raise ValueError(f"default position exceeds limit for {joint_name}")
         effort, velocity = limits[joint_name]
         limit.set("effort", format_number(effort))
         limit.set("velocity", format_number(velocity))
@@ -167,6 +173,7 @@ def normalize(config_path: Path, output_dir: Path, *, check: bool = False) -> Pa
     print(f"urdf={output_urdf}")
     print(f"status={'current' if check else 'generated'}")
     print(f"actuated_joints={len(actuated_joints)}")
+    print(f"default_base_height={config['default_state']['base_height_m']}")
     print(f"primitive_collisions={len(links)}")
     print(f"unique_meshes={len(referenced_meshes)}")
     return output_urdf
