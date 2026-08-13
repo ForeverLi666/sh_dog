@@ -54,8 +54,8 @@ SH_DOG_CFG = ArticulationCfg(
             effort_limit=ACTUATOR["rated_torque_nm"],
             saturation_effort=ACTUATOR["peak_torque_nm"],
             velocity_limit=ACTUATOR["no_load_speed_rpm"] * 2.0 * math.pi / 60.0,
-            stiffness=25.0,
-            damping=0.5,
+            stiffness={".*_abad_joint": 25.0, ".*_hip_joint": 30.0},
+            damping={".*_abad_joint": 1.0, ".*_hip_joint": 1.2},
             armature=ACTUATOR["low_speed_equivalent_inertia_kg_m2"],
             friction=0.0,
         ),
@@ -64,18 +64,19 @@ SH_DOG_CFG = ArticulationCfg(
             effort_limit=joint_side(ACTUATOR["rated_torque_nm"], "knee"),
             saturation_effort=joint_side(ACTUATOR["peak_torque_nm"], "knee"),
             velocity_limit=ACTUATOR["no_load_speed_rpm"] * 2.0 * math.pi / 60.0 / REDUCTION["knee"],
-            stiffness=25.0,
-            damping=0.5,
+            stiffness=40.0,
+            damping=2.0,
             armature=joint_side(ACTUATOR["low_speed_equivalent_inertia_kg_m2"], "knee", squared=True),
             friction=0.0,
         ),
     },
 )
-"""ShDog training configuration with joint-side actuator parameters."""
+"""ShDog locomotion configuration with compliant joint-side PD gains."""
 
 SH_DOG_STAND_CFG = SH_DOG_CFG.copy()
 SH_DOG_STAND_CFG.actuators["abad_hip"].stiffness = {".*_abad_joint": 40.0, ".*_hip_joint": 60.0}
 SH_DOG_STAND_CFG.actuators["abad_hip"].damping = {".*_abad_joint": 1.5, ".*_hip_joint": 2.0}
 SH_DOG_STAND_CFG.actuators["knee"].stiffness = 80.0
 SH_DOG_STAND_CFG.actuators["knee"].damping = 3.0
+
 """ShDog pure-position stand-up configuration."""
