@@ -28,7 +28,7 @@ sh_dog/
 │   ├── sim2sim/            # MuJoCo 后端与入口
 │   ├── sim2real/           # 实机后端与入口
 │   └── interfaces/         # 实机通信接口定义
-├── tools/                  # 资产转换、配置生成和策略打包
+├── scripts/                # 仓库级生成、同步和部署入口
 ├── docker/                 # 可移植训练环境
 ├── docs/                   # 架构、接口与交接说明
 ├── artifacts/              # 不提交的运行产物与策略包
@@ -38,6 +38,15 @@ sh_dog/
 目录按实际需求逐步创建。Isaac Lab 骨架已迁移到 `training/`，任务逻辑保持不变。
 
 ## 模块边界
+
+### Repository scripts
+
+根目录 `scripts/` 保存仓库级可执行入口，包括资产生成、训练服务器同步和后续策略打包或部署操作。
+`training/scripts/` 只保存 Isaac Lab 专属入口，不承担跨模块操作。
+
+训练服务器同步可以严格镜像工程源码和本地生成的 USD，但必须保护远端 Git 元数据与 `artifacts/`。
+后续实机同步采用部署文件白名单，只允许 `deploy/`、部署配置和策略包进入实机，不同步 `training/`、
+Docker、USD 或 checkpoint。
 
 ### Training
 

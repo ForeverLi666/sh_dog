@@ -18,9 +18,9 @@ checkpoint、定量诊断和策略导出。
 
 ## 当前状态
 
-Isaac Lab 子工程当前仍是 manager-based Cartpole 占位任务，只用于验证注册与运行链路，不得作为
-四足训练基线。机器人 raw 资产、规范化 URDF 和 primitive collision 已纳入 `assets/sh_dog/`；正式
-四足任务、策略包和部署 runtime 尚未实现。当前进度与下一步见 `docs/handoff.md`。
+Isaac Lab 子工程已建立 ShDog manager-based 平地速度跟踪任务及最小 RSL-RL PPO 配置。机器人 raw
+资产、规范化 URDF 和 primitive collision 已纳入 `assets/sh_dog/`；策略包和部署 runtime 尚未实现。
+当前进度与下一步见 `docs/handoff.md`。
 
 ## 安装扩展
 
@@ -36,14 +36,33 @@ python -m pip install --no-deps --editable training/source/sh_dog
 python training/scripts/list_envs.py
 ```
 
-预期只列出 `ShDog-Template-v0`。
+预期列出 `ShDog-Velocity-Flat-v0` 和 `ShDog-Velocity-Flat-Play-v0`。
+
+## 验证平地任务
+
+使用 Play 环境观察零命令、零 action 站立。任务使用运动配置 `SH_DOG_CFG`，不使用状态机站起配置：
+
+```bash
+python training/scripts/zero_agent.py --task ShDog-Velocity-Flat-Play-v0 --num_envs 1
+```
+
+`sh_dog_baseline` 对齐 Unitree 开源 Go2 velocity 的单帧 MLP、45D actor、60D 特权 critic、PPO、
+速度课程、随机化和奖励；保留 ShDog 资产、运动 PD、关节顺序及接触名称。action scale 为
+`0.25 rad`。
+
+最小 PPO 冒烟命令为：
+
+```bash
+python training/scripts/rsl_rl/train.py \
+  --task ShDog-Velocity-Flat-v0 --headless --num_envs 64 --max_iterations 2
+```
 
 ## 验证站立
 
 先生成 USD，再运行纯位置 PD 站立序列：
 
 ```bash
-python tools/build_usd.py
+python scripts/build_usd.py
 python training/scripts/stand.py
 ```
 
@@ -90,6 +109,33 @@ Dockerfile、基础镜像摘要和构建末尾的版本断言共同定义训练�
 和服务器资源属于运行环境，不写入工程。训练日志、Hydra 输出和 checkpoint 写入
 `artifacts/training/`，不混入源码目录；跨环境只导出 `artifacts/policies/` 中的
 TorchScript/ONNX 策略包。
+
+## 同步训练服务器
+
+训练服务器使用专用目录接收本地工程的严格镜像。本地生成的 USD 会一并同步；远端 `.git/`、
+`artifacts/`、缓存和日志不受同步影响。先在本机 shell 环境中配置 SSH alias 和目标目录：
+
+```bash
+export SH_DOG_TRAIN_HOST=shdog-train
+export SH_DOG_TRAIN_DIR=/srv/sh_dog
+```
+
+首次同步只允许初始化空目录：
+
+```bash
+scripts/sync_training.sh --init
+```
+
+以后只需执行：
+
+```bash
+scripts/sync_training.sh
+```
+
+需要预览新增、更新和删除内容时使用 `scripts/sync_training.sh --dry-run`。目标目录必须以
+`/sh_dog` 或 `/sh_dog_sync` 结尾，并包含初始化生成的 marker；检查失败时脚本拒绝执行
+`rsync --delete-delay`。本地缺少完整 USD 分层文件时同步同样会失败，不会删除服务器上的可用资产。
+实机同步将在部署模块建立后单独实现，只允许同步部署相关源码和策略包。
 
 ## 约定
 

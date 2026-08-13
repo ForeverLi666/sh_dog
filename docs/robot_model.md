@@ -3,7 +3,7 @@
 本文定义 `sh_dog` 在训练、sim2sim 和 sim2real 中共用的模型语义。原始 CAD 导出文件保存在
 `assets/sh_dog/raw/`，永久保持不变。
 
-规范化模型位于 `assets/sh_dog/urdf/sh_dog.urdf`，由 `tools/normalize_urdf.py` 生成并提交 Git。
+规范化模型位于 `assets/sh_dog/urdf/sh_dog.urdf`，由 `scripts/normalize_urdf.py` 生成并提交 Git。
 它直接引用 raw STL，不维护 mesh 副本。任何模型变更都先修改 raw 输入或 `model.toml`，再重新生成。
 
 ## 坐标系
@@ -118,6 +118,6 @@ self-collision 策略完成落地仿真验收。
 
 ## 后端资产
 
-Isaac Sim USD 固定生成到 `assets/sh_dog/usd/`，由 `tools/build_usd.py` 转换，不提交 Git。转换保留
+Isaac Sim USD 固定生成到 `assets/sh_dog/usd/`，由 `scripts/build_usd.py` 转换，不提交 Git。转换保留
 fixed joint，不写入任意 PD 参数；训练侧负责定义驱动器。USD 仅是 Isaac Sim 后端资产，不是模型
 事实来源。

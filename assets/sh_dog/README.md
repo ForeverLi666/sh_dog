@@ -16,9 +16,9 @@ sh_dog/
 在仓库根目录生成或检查模型：
 
 ```bash
-python tools/normalize_urdf.py
-python tools/normalize_urdf.py --check
-python tools/build_usd.py
+python scripts/normalize_urdf.py
+python scripts/normalize_urdf.py --check
+python scripts/build_usd.py
 ```
 
 规范化 URDF 直接引用 `raw/meshes/`，不复制 STL。提交资产变更前必须执行 `--check`。
