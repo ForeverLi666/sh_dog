@@ -38,6 +38,18 @@ python training/scripts/list_envs.py
 
 预期只列出 `ShDog-Template-v0`。
 
+## 验证站立
+
+先生成 USD，再运行纯位置 PD 站立序列：
+
+```bash
+python tools/build_usd.py
+python training/scripts/stand.py
+```
+
+序列从 `0.40 m` 释放下蹲姿态，保持 `0.5 s` 后以五次平滑插值在 `0.5 s` 内站起。所有执行器参数
+均为关节侧数值，上层不处理传动比。
+
 ## Docker 训练环境
 
 无代理时构建训练镜像：
