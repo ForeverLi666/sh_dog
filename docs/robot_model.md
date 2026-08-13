@@ -86,6 +86,22 @@ rr_knee_joint
 
 ## 碰撞体状态
 
-当前规范化 URDF 仍使用 CAD mesh collision，只适合结构验证。下一步根据 ShDog 实际尺寸生成最少
-数量的 box、cylinder 和 sphere，并通过可视叠加、全关节范围自碰撞和 Isaac Lab 落地测试验收。
-Go2 等成熟模型只用于参考 primitive 选择和拆分方式，不复用尺寸。
+正式 collision 由 `assets/sh_dog/model.toml` 定义，生成器按标准腿名前缀完成前后、左右镜像。
+每个 link 使用一个 primitive：
+
+| Link | Shape | 设计边界 |
+| --- | --- | --- |
+| `base_link` | box | 覆盖主体，不包含两侧关节外壳 |
+| `*_abad_link` | cylinder | 覆盖电机主体 |
+| `*_hip_link` | box | 覆盖腿段中部，避开相邻关节 |
+| `*_knee_link` | cylinder | 覆盖小腿主体，避开膝关节 |
+| `*_foot_link` | sphere | 匹配足端外形和接触点 |
+
+该拆分参考 [Unitree Go2 官方 URDF](https://github.com/unitreerobotics/unitree_ros/blob/master/robots/go2_description/urdf/go2_description.urdf)
+的 primitive 类型及其缩短腿段 collision 以避免相邻 link 假碰撞的经验，尺寸和 origin 均来自
+ShDog STL 与关节坐标，不复用 Go2 数值。visual 继续使用 STL；质量、惯量、拓扑、关节轴和限位
+不受 collision 生成影响。
+
+当前已通过 visual/collision 局部叠加、代表性站立与下蹲姿态自碰撞检查，以及 Isaac Sim 5.1 URDF
+导入。接近关节极限的姿态仍可能发生真实的相邻腿段接触；正式训练前应结合默认姿态和启用的
+self-collision 策略完成落地仿真验收。

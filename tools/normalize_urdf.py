@@ -20,6 +20,11 @@ except ModuleNotFoundError:
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_CONFIG = REPO_ROOT / "assets/sh_dog/model.toml"
 DEFAULT_OUTPUT = REPO_ROOT / "assets/sh_dog/urdf"
+SHAPE_ATTRIBUTES = {
+    "box": ("size",),
+    "cylinder": ("radius", "length"),
+    "sphere": ("radius",),
+}
 
 
 def parse_args() -> argparse.Namespace:
@@ -34,38 +39,59 @@ def load_config(path: Path) -> dict[str, Any]:
     with path.open("rb") as stream:
         config = tomllib.load(stream)
     if config.get("schema_version") != 1:
-        raise ValueError("unsupported model schema_version")
+        raise ValueError(f"unsupported schema_version in {path}")
     return config
 
 
 def format_number(value: float) -> str:
+    if value == 0.0:
+        return "0"
     return f"{value:.12g}"
+
+
+def format_vector(values: list[float]) -> str:
+    return " ".join(format_number(float(value)) for value in values)
+
+
+def build_collision(link_name: str, config: dict[str, Any]) -> ET.Element:
+    prefix = None
+    role = link_name
+    if link_name != "base_link":
+        prefix, role = link_name.split("_", maxsplit=1)
+        if prefix not in {"fl", "fr", "rl", "rr"}:
+            raise ValueError(f"unsupported leg prefix in {link_name}")
+    primitive = config["collision"][role]
+    xyz = [float(value) for value in primitive["xyz"]]
+    rpy = [float(value) for value in primitive.get("rpy", [0.0, 0.0, 0.0])]
+    if prefix is not None:
+        if role == "abad_link" and prefix.startswith("r"):
+            xyz[0] = -xyz[0]
+        if prefix.endswith("r"):
+            xyz[1] = -xyz[1]
+
+    collision = ET.Element("collision")
+    ET.SubElement(collision, "origin", xyz=format_vector(xyz), rpy=format_vector(rpy))
+    geometry = ET.SubElement(collision, "geometry")
+    shape = primitive["shape"]
+    if shape not in SHAPE_ATTRIBUTES:
+        raise ValueError(f"unsupported collision shape for {link_name}: {shape}")
+    attributes = {
+        name: format_vector(primitive[name]) if name == "size" else format_number(float(primitive[name]))
+        for name in SHAPE_ATTRIBUTES[shape]
+    }
+    ET.SubElement(geometry, shape, attributes)
+    return collision
 
 
 def build_joint_limits(config: dict[str, Any]) -> dict[str, tuple[float, float]]:
     actuator = config["actuator"]
-    actuator_model = str(actuator["model"]).strip()
-    rated_torque = float(actuator["rated_torque_nm"])
     peak_torque = float(actuator["peak_torque_nm"])
     no_load_speed = float(actuator["no_load_speed_rpm"]) * 2.0 * math.pi / 60.0
-    if not actuator_model:
-        raise ValueError("actuator model must not be empty")
-    if not 0.0 < rated_torque <= peak_torque:
-        raise ValueError("actuator torque limits are invalid")
-    if no_load_speed <= 0.0:
-        raise ValueError("actuator no-load speed must be positive")
-
-    limits: dict[str, tuple[float, float]] = {}
     reductions = config["additional_reduction"]
+    limits = {}
     for joint_name in config["robot"]["joint_order"]:
         joint_type = joint_name.removesuffix("_joint").rsplit("_", maxsplit=1)[-1]
-        if joint_type not in reductions:
-            raise ValueError(f"missing additional_reduction for {joint_name}")
         reduction = float(reductions[joint_type])
-        if reduction <= 0.0:
-            raise ValueError(f"additional_reduction must be positive for {joint_type}")
-        if joint_name in limits:
-            raise ValueError(f"duplicate joint in model config: {joint_name}")
         limits[joint_name] = (peak_torque * reduction, no_load_speed / reduction)
     return limits
 
@@ -85,17 +111,16 @@ def normalize(config_path: Path, output_dir: Path, *, check: bool = False) -> Pa
         raise ValueError("source URDF robot name does not match model config")
     robot.set("name", robot_config["name"])
 
-    joint_renames = config["normalization"]["joint_renames"]
+    actuated_joints = []
     for joint in robot.findall("joint"):
         joint_name = joint.get("name")
-        if joint_name in joint_renames:
-            joint.set("name", joint_renames[joint_name])
+        if joint_name in config["normalization"]["joint_renames"]:
+            joint.set("name", config["normalization"]["joint_renames"][joint_name])
+        if joint.get("type") != "fixed":
+            actuated_joints.append(joint)
 
     limits = build_joint_limits(config)
-    expected_joint_order = robot_config["joint_order"]
-    actuated_joints = [joint for joint in robot.findall("joint") if joint.get("type") != "fixed"]
-    actual_joint_names = [joint.get("name") for joint in actuated_joints]
-    if actual_joint_names != expected_joint_order:
+    if [joint.get("name") for joint in actuated_joints] != robot_config["joint_order"]:
         raise ValueError("actuated joint order in source URDF does not match model config")
 
     for joint in actuated_joints:
@@ -107,7 +132,15 @@ def normalize(config_path: Path, output_dir: Path, *, check: bool = False) -> Pa
         limit.set("effort", format_number(effort))
         limit.set("velocity", format_number(velocity))
 
-    mesh_count = 0
+    links = robot.findall("link")
+    for link in links:
+        link_name = link.get("name")
+        collision = link.find("collision")
+        if link_name is None or collision is None:
+            raise ValueError("link is missing a name or collision")
+        link.remove(collision)
+        link.append(build_collision(link_name, config))
+
     referenced_meshes: set[str] = set()
     for mesh in robot.findall(".//mesh"):
         source_uri = mesh.get("filename")
@@ -120,7 +153,6 @@ def normalize(config_path: Path, output_dir: Path, *, check: bool = False) -> Pa
         referenced_meshes.add(source_name)
         relative_mesh = Path(os.path.relpath(source_mesh, output_dir)).as_posix()
         mesh.set("filename", relative_mesh)
-        mesh_count += 1
 
     ET.indent(tree, space="  ")
     output_urdf = output_dir / f"{robot_config['name']}.urdf"
@@ -135,7 +167,7 @@ def normalize(config_path: Path, output_dir: Path, *, check: bool = False) -> Pa
     print(f"urdf={output_urdf}")
     print(f"status={'current' if check else 'generated'}")
     print(f"actuated_joints={len(actuated_joints)}")
-    print(f"mesh_references={mesh_count}")
+    print(f"primitive_collisions={len(links)}")
     print(f"unique_meshes={len(referenced_meshes)}")
     return output_urdf
 

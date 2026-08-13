@@ -32,3 +32,34 @@ knee = 2.0
 
 [normalization.joint_renames]
 fl_foot_joinf = "fl_foot_joint"
+
+# Leg geometry is defined for front-left and mirrored by link prefix.
+
+[collision.base_link]
+shape = "box"
+xyz = [0.0, 0.0, -0.03]
+size = [0.29, 0.142, 0.13]
+
+[collision.abad_link]
+shape = "cylinder"
+xyz = [0.05877, -0.01225, 0.0]
+rpy = [0.0, 1.57079632679, 0.0]
+radius = 0.046
+length = 0.08
+
+[collision.hip_link]
+shape = "box"
+xyz = [0.0, 0.08215, -0.115]
+size = [0.065, 0.04, 0.11]
+
+[collision.knee_link]
+shape = "cylinder"
+xyz = [0.0155, 0.0, -0.15]
+rpy = [0.0, -0.1044, 0.0]
+radius = 0.015
+length = 0.14
+
+[collision.foot_link]
+shape = "sphere"
+xyz = [-0.0045, 0.0, -0.005]
+radius = 0.0225

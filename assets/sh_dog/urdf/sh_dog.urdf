@@ -16,9 +16,9 @@
       </material>
     </visual>
     <collision>
-      <origin xyz="0 0 0" rpy="0 0 0" />
+      <origin xyz="0 0 -0.03" rpy="0 0 0" />
       <geometry>
-        <mesh filename="../raw/meshes/base_link.STL" />
+        <box size="0.29 0.142 0.13" />
       </geometry>
     </collision>
   </link>
@@ -38,9 +38,9 @@
       </material>
     </visual>
     <collision>
-      <origin xyz="0 0 0" rpy="0 0 0" />
+      <origin xyz="0.05877 -0.01225 0" rpy="0 1.57079632679 0" />
       <geometry>
-        <mesh filename="../raw/meshes/fl_abad_link.STL" />
+        <cylinder radius="0.046" length="0.08" />
       </geometry>
     </collision>
   </link>
@@ -67,9 +67,9 @@
       </material>
     </visual>
     <collision>
-      <origin xyz="0 0 0" rpy="0 0 0" />
+      <origin xyz="0 0.08215 -0.115" rpy="0 0 0" />
       <geometry>
-        <mesh filename="../raw/meshes/fl_hip_link.STL" />
+        <box size="0.065 0.04 0.11" />
       </geometry>
     </collision>
   </link>
@@ -96,9 +96,9 @@
       </material>
     </visual>
     <collision>
-      <origin xyz="0 0 0" rpy="0 0 0" />
+      <origin xyz="0.0155 0 -0.15" rpy="0 -0.1044 0" />
       <geometry>
-        <mesh filename="../raw/meshes/fl_knee_link.STL" />
+        <cylinder radius="0.015" length="0.14" />
       </geometry>
     </collision>
   </link>
@@ -125,9 +125,9 @@
       </material>
     </visual>
     <collision>
-      <origin xyz="0 0 0" rpy="0 0 0" />
+      <origin xyz="-0.0045 0 -0.005" rpy="0 0 0" />
       <geometry>
-        <mesh filename="../raw/meshes/fl_foot_link.STL" />
+        <sphere radius="0.0225" />
       </geometry>
     </collision>
   </link>
@@ -153,9 +153,9 @@
       </material>
     </visual>
     <collision>
-      <origin xyz="0 0 0" rpy="0 0 0" />
+      <origin xyz="0.05877 0.01225 0" rpy="0 1.57079632679 0" />
       <geometry>
-        <mesh filename="../raw/meshes/fr_abad_link.STL" />
+        <cylinder radius="0.046" length="0.08" />
       </geometry>
     </collision>
   </link>
@@ -182,9 +182,9 @@
       </material>
     </visual>
     <collision>
-      <origin xyz="0 0 0" rpy="0 0 0" />
+      <origin xyz="0 -0.08215 -0.115" rpy="0 0 0" />
       <geometry>
-        <mesh filename="../raw/meshes/fr_hip_link.STL" />
+        <box size="0.065 0.04 0.11" />
       </geometry>
     </collision>
   </link>
@@ -211,9 +211,9 @@
       </material>
     </visual>
     <collision>
-      <origin xyz="0 0 0" rpy="0 0 0" />
+      <origin xyz="0.0155 0 -0.15" rpy="0 -0.1044 0" />
       <geometry>
-        <mesh filename="../raw/meshes/fr_knee_link.STL" />
+        <cylinder radius="0.015" length="0.14" />
       </geometry>
     </collision>
   </link>
@@ -240,9 +240,9 @@
       </material>
     </visual>
     <collision>
-      <origin xyz="0 0 0" rpy="0 0 0" />
+      <origin xyz="-0.0045 0 -0.005" rpy="0 0 0" />
       <geometry>
-        <mesh filename="../raw/meshes/fr_foot_link.STL" />
+        <sphere radius="0.0225" />
       </geometry>
     </collision>
   </link>
@@ -268,9 +268,9 @@
       </material>
     </visual>
     <collision>
-      <origin xyz="0 0 0" rpy="0 0 0" />
+      <origin xyz="-0.05877 -0.01225 0" rpy="0 1.57079632679 0" />
       <geometry>
-        <mesh filename="../raw/meshes/rl_abad_link.STL" />
+        <cylinder radius="0.046" length="0.08" />
       </geometry>
     </collision>
   </link>
@@ -297,9 +297,9 @@
       </material>
     </visual>
     <collision>
-      <origin xyz="0 0 0" rpy="0 0 0" />
+      <origin xyz="0 0.08215 -0.115" rpy="0 0 0" />
       <geometry>
-        <mesh filename="../raw/meshes/rl_hip_link.STL" />
+        <box size="0.065 0.04 0.11" />
       </geometry>
     </collision>
   </link>
@@ -326,9 +326,9 @@
       </material>
     </visual>
     <collision>
-      <origin xyz="0 0 0" rpy="0 0 0" />
+      <origin xyz="0.0155 0 -0.15" rpy="0 -0.1044 0" />
       <geometry>
-        <mesh filename="../raw/meshes/rl_knee_link.STL" />
+        <cylinder radius="0.015" length="0.14" />
       </geometry>
     </collision>
   </link>
@@ -355,9 +355,9 @@
       </material>
     </visual>
     <collision>
-      <origin xyz="0 0 0" rpy="0 0 0" />
+      <origin xyz="-0.0045 0 -0.005" rpy="0 0 0" />
       <geometry>
-        <mesh filename="../raw/meshes/rl_foot_link.STL" />
+        <sphere radius="0.0225" />
       </geometry>
     </collision>
   </link>
@@ -383,9 +383,9 @@
       </material>
     </visual>
     <collision>
-      <origin xyz="0 0 0" rpy="0 0 0" />
+      <origin xyz="-0.05877 0.01225 0" rpy="0 1.57079632679 0" />
       <geometry>
-        <mesh filename="../raw/meshes/rr_abad_link.STL" />
+        <cylinder radius="0.046" length="0.08" />
       </geometry>
     </collision>
   </link>
@@ -412,9 +412,9 @@
       </material>
     </visual>
     <collision>
-      <origin xyz="0 0 0" rpy="0 0 0" />
+      <origin xyz="0 -0.08215 -0.115" rpy="0 0 0" />
       <geometry>
-        <mesh filename="../raw/meshes/rr_hip_link.STL" />
+        <box size="0.065 0.04 0.11" />
       </geometry>
     </collision>
   </link>
@@ -441,9 +441,9 @@
       </material>
     </visual>
     <collision>
-      <origin xyz="0 0 0" rpy="0 0 0" />
+      <origin xyz="0.0155 0 -0.15" rpy="0 -0.1044 0" />
       <geometry>
-        <mesh filename="../raw/meshes/rr_knee_link.STL" />
+        <cylinder radius="0.015" length="0.14" />
       </geometry>
     </collision>
   </link>
@@ -470,9 +470,9 @@
       </material>
     </visual>
     <collision>
-      <origin xyz="0 0 0" rpy="0 0 0" />
+      <origin xyz="-0.0045 0 -0.005" rpy="0 0 0" />
       <geometry>
-        <mesh filename="../raw/meshes/rr_foot_link.STL" />
+        <sphere radius="0.0225" />
       </geometry>
     </collision>
   </link>

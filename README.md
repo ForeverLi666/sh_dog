@@ -19,7 +19,7 @@ checkpoint、定量诊断和策略导出。
 ## 当前状态
 
 Isaac Lab 子工程当前仍是 manager-based Cartpole 占位任务，只用于验证注册与运行链路，不得作为
-四足训练基线。机器人 raw 资产和规范化 URDF 已纳入 `assets/sh_dog/`；primitive collision、正式
+四足训练基线。机器人 raw 资产、规范化 URDF 和 primitive collision 已纳入 `assets/sh_dog/`；正式
 四足任务、策略包和部署 runtime 尚未实现。当前进度与下一步见 `docs/handoff.md`。
 
 ## 安装扩展
