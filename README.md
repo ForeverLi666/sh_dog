@@ -98,12 +98,41 @@ docker compose -f docker/compose.train.yaml run --rm train \
     /workspace/sh_dog/training/scripts/list_envs.py --keyword ShDog'
 ```
 
-正式训练可按服务器资源提高共享内存上限：
+正式训练使用仓库级 Docker 入口。默认运行
+`ShDog-Velocity-Flat-v0`、4096 个环境、10000 iterations，并记录 TensorBoard 日志：
 
 ```bash
-SH_DOG_SHM_SIZE=8gb docker compose -f docker/compose.train.yaml run --rm train \
-  '<training-command>'
+scripts/training.sh train baseline_10k
 ```
+
+run name 必须显式提供；常用参数可以直接覆盖：
+
+```bash
+scripts/training.sh train smoke --num-envs 64 --max-iterations 2 --shm-size 8gb
+```
+
+未封装的训练参数放在 `--` 后传给 Isaac Lab，例如恢复指定 run：
+
+```bash
+scripts/training.sh train resumed -- --resume --load_run '<run-directory>'
+```
+
+TensorBoard 默认读取 `sh_dog_baseline` 实验并只监听本机 `6006` 端口：
+
+```bash
+scripts/training.sh tensorboard
+```
+
+日志目录、监听地址和端口均可覆盖。日志目录使用仓库相对路径：
+
+```bash
+scripts/training.sh tensorboard \
+  --logdir artifacts/training/logs/rsl_rl/sh_dog_baseline \
+  --host 127.0.0.1 \
+  --port 6007
+```
+
+完整参数见 `scripts/training.sh --help`。
 
 Dockerfile、基础镜像摘要和构建末尾的版本断言共同定义训练软件环境。代理地址、镜像仓库认证
 和服务器资源属于运行环境，不写入工程。训练日志、Hydra 输出和 checkpoint 写入
