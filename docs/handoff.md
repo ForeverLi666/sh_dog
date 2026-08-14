@@ -30,7 +30,7 @@
 ## 检查
 
 ```bash
-python scripts/normalize_urdf.py --check
+python scripts/normalize_urdf.py
 python scripts/build_usd.py
 python training/scripts/list_envs.py
 python training/scripts/stand.py

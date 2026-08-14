@@ -113,29 +113,17 @@ TorchScript/ONNX 策略包。
 ## 同步训练服务器
 
 训练服务器使用专用目录接收本地工程的严格镜像。本地生成的 USD 会一并同步；远端 `.git/`、
-`artifacts/`、缓存和日志不受同步影响。先在本机 shell 环境中配置 SSH alias 和目标目录：
-
-```bash
-export SH_DOG_TRAIN_HOST=shdog-train
-export SH_DOG_TRAIN_DIR=/srv/sh_dog
-```
-
-首次同步只允许初始化空目录：
-
-```bash
-scripts/sync_training.sh --init
-```
-
-以后只需执行：
+`artifacts/`、缓存和日志不受同步影响。服务器地址和目标目录统一配置在
+`scripts/sync_training.conf`，同步时直接运行：
 
 ```bash
 scripts/sync_training.sh
 ```
 
-需要预览新增、更新和删除内容时使用 `scripts/sync_training.sh --dry-run`。目标目录必须以
-`/sh_dog` 或 `/sh_dog_sync` 结尾，并包含初始化生成的 marker；检查失败时脚本拒绝执行
-`rsync --delete-delay`。本地缺少完整 USD 分层文件时同步同样会失败，不会删除服务器上的可用资产。
-实机同步将在部署模块建立后单独实现，只允许同步部署相关源码和策略包。
+首次运行会自动初始化不存在或为空的目标目录。目标目录必须以 `/sh_dog` 或 `/sh_dog_sync` 结尾；
+非空目录缺少同步 marker 时脚本拒绝执行 `rsync --delete-delay`。本地缺少完整 USD 分层文件时同样
+会失败，不会删除服务器上的可用资产。实机同步将在部署模块建立后单独实现，只允许同步部署相关
+源码和策略包。
 
 ## 约定
 

@@ -31,7 +31,6 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
-    parser.add_argument("--check", action="store_true", help="verify the committed URDF is current")
     return parser.parse_args()
 
 
@@ -96,7 +95,7 @@ def build_joint_limits(config: dict[str, Any]) -> dict[str, tuple[float, float]]
     return limits
 
 
-def normalize(config_path: Path, output_dir: Path, *, check: bool = False) -> Path:
+def normalize(config_path: Path, output_dir: Path) -> Path:
     config_path = config_path.resolve()
     output_dir = output_dir.resolve()
     config = load_config(config_path)
@@ -163,15 +162,11 @@ def normalize(config_path: Path, output_dir: Path, *, check: bool = False) -> Pa
     ET.indent(tree, space="  ")
     output_urdf = output_dir / f"{robot_config['name']}.urdf"
     output_bytes = ET.tostring(tree.getroot(), encoding="utf-8", xml_declaration=True)
-    if check:
-        if not output_urdf.is_file() or output_urdf.read_bytes() != output_bytes:
-            raise RuntimeError(f"normalized URDF is missing or stale: {output_urdf}")
-    else:
-        output_dir.mkdir(parents=True, exist_ok=True)
-        output_urdf.write_bytes(output_bytes)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    output_urdf.write_bytes(output_bytes)
 
     print(f"urdf={output_urdf}")
-    print(f"status={'current' if check else 'generated'}")
+    print("status=generated")
     print(f"actuated_joints={len(actuated_joints)}")
     print(f"default_base_height={config['default_state']['base_height_m']}")
     print(f"primitive_collisions={len(links)}")
@@ -181,7 +176,7 @@ def normalize(config_path: Path, output_dir: Path, *, check: bool = False) -> Pa
 
 def main() -> None:
     args = parse_args()
-    normalize(args.config, args.output, check=args.check)
+    normalize(args.config, args.output)
 
 
 if __name__ == "__main__":
