@@ -134,6 +134,33 @@ scripts/training.sh tensorboard \
 
 完整参数见 `scripts/training.sh --help`。
 
+完成训练后使用同一 Docker 环境做定量评估。默认加载 nominal Play task，从 task 的
+`limit_ranges` 生成归一化命令场景，每个场景运行 8 个 episode：
+
+```bash
+scripts/training.sh eval \
+  artifacts/training/logs/rsl_rl/sh_dog_baseline/<run>/model_9999.pt
+```
+
+使用训练 task 评估 observation corruption、动力学随机化和 push 下的性能：
+
+```bash
+scripts/training.sh eval \
+  artifacts/training/logs/rsl_rl/sh_dog_baseline/<run>/model_9999.pt \
+  --task ShDog-Velocity-Flat-v0
+```
+
+评估结果写入 checkpoint 所在 run 的 `eval/<checkpoint>/<task>/<timestamp>/`，包括解析后的
+`protocol.yaml`、运行元数据、逐 episode CSV 和汇总 JSON。旧协议可原样重放；协议的 timing、
+repeats 和 seed 不允许在重放时覆盖：
+
+```bash
+scripts/training.sh eval <checkpoint> --protocol <protocol.yaml>
+```
+
+当前评估只支持 flat task。rough terrain 建立后再按实际 terrain 类型和难度扩展，不在当前入口中
+预设地形框架。
+
 Dockerfile、基础镜像摘要和构建末尾的版本断言共同定义训练软件环境。代理地址、镜像仓库认证
 和服务器资源属于运行环境，不写入工程。训练日志、Hydra 输出和 checkpoint 写入
 `artifacts/training/`，不混入源码目录；跨环境只导出 `artifacts/policies/` 中的

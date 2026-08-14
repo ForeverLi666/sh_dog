@@ -21,11 +21,24 @@
   和 PPO；仅 flat terrain，不引入其注释掉的楼梯、height scan 或 observation history。
 - 仓库级可执行工具统一位于 `scripts/`；`sync_training.sh` 可将源码和本地生成 USD 严格镜像到训练
   服务器，同时保护远端 `.git/` 与 `artifacts/`。
+- 已完成 `baseline_10k` 的 4096 environments、10000 iterations 训练；最终 checkpoint 为
+  `model_9999.pt`。本机 Play 已观察到策略可以全向移动；TensorBoard 日志审计以及 nominal、
+  randomized 定量评估均已完成。
+- `training/scripts/rsl_rl/eval.py` 从 task 命令包络生成 flat 归一化评估协议，输出逐 episode 指标和
+  汇总结果；`scripts/training.sh eval` 提供 Docker 入口。当前不预设 rough terrain 评估框架。
+- 两套评估均为 21 cases、每 case 8 repeats，共 168 episodes，结果均为 168/168 成功且无 termination。
+  randomized 相比 nominal 主要增加 yaw 跟踪和停止恢复误差，但未出现稳定性失效。
+- 本次 run 未保存 ShDog 源码 commit，只能确认训练参数、checkpoint 和 TensorBoard 记录；评估结果由
+  未提交的评估实现生成。正式归档前需要补齐运行元数据，并在干净工作树上重跑评估。
+- Docker 评估首次启动曾在 `omni.platforminfo.plugin` 内偶发 segfault；相同配置随后完成最小启动及
+  两套完整评估，GPU 和 CUDA 注入正常。当前不绕开 Docker，也不因单次异常增加自动重试。
 
 ## 下一步
 
-先用 Play 环境验收零命令站立、reset、足端接触和零 action。通过后再运行 64 环境、2 iteration
-的最小 PPO 冒烟；在这些基础行为确认前不扩大训练规模。
+当前证据支持接受 baseline 的平地能力，不修改奖励、噪声、PPO 或观测。下一步先补充逐关节力矩限幅
+占比，确认评估中多次达到 `22 Nm` 是否为持续膝关节饱和；再使用多个 seed 重复 randomized 评估。
+评估实现验证并提交后，在干净工作树重跑两套协议作为正式报告，同时为后续训练记录 ShDog commit、
+dirty 状态、完整命令和镜像摘要。若 Docker 启动崩溃复现，再保留完整 Kit 日志和 crash dump 分析。
 
 ## 检查
 
@@ -35,8 +48,11 @@ python scripts/build_usd.py
 python training/scripts/list_envs.py
 python training/scripts/stand.py
 python training/scripts/zero_agent.py --task ShDog-Velocity-Flat-Play-v0 --num_envs 1
-python training/scripts/rsl_rl/train.py \
-  --task ShDog-Velocity-Flat-v0 --headless --num_envs 64 --max_iterations 2
+scripts/training.sh eval \
+  artifacts/training/logs/rsl_rl/sh_dog_baseline/<run>/model_9999.pt
+scripts/training.sh eval \
+  artifacts/training/logs/rsl_rl/sh_dog_baseline/<run>/model_9999.pt \
+  --task ShDog-Velocity-Flat-v0
 ```
 
 USD 与训练产物不提交 Git。模型约定见 `docs/robot_model.md`，工程边界见 `docs/architecture.md`。
