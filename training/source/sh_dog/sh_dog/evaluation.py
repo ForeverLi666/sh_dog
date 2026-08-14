@@ -168,6 +168,12 @@ class VelocityEvaluation:
         self.protocol = protocol
         self.num_envs = len(protocol["cases"]) * protocol["repeats"]
         self.robot = env.scene["robot"]
+        self.joint_names = self.robot.joint_names
+        self.effort_limits = torch.zeros(len(self.joint_names), device=env.device)
+        for actuator in self.robot.actuators.values():
+            self.effort_limits[actuator.joint_indices] = actuator.effort_limit[0]
+        if torch.any(self.effort_limits <= 0.0):
+            raise ValueError("all evaluated joints must have a positive actuator effort limit")
         self.contact_sensor = env.scene.sensors["contact_forces"]
         self.robot_foot_ids, _ = self.robot.find_bodies(".*_foot_link")
         self.sensor_foot_ids, _ = self.contact_sensor.find_bodies(".*_foot_link")
@@ -194,6 +200,15 @@ class VelocityEvaluation:
         self.action_abs_max = torch.zeros(self.num_envs, device=env.device)
         self.torque_sq = torch.zeros(self.num_envs, device=env.device)
         self.torque_abs_max = torch.zeros(self.num_envs, device=env.device)
+        joint_shape = (self.num_envs, len(self.joint_names))
+        self.computed_torque_sq = torch.zeros(joint_shape, device=env.device)
+        self.applied_torque_sq = torch.zeros(joint_shape, device=env.device)
+        self.computed_torque_abs_max = torch.zeros(joint_shape, device=env.device)
+        self.applied_torque_abs_max = torch.zeros(joint_shape, device=env.device)
+        self.torque_clip_count = torch.zeros(joint_shape, device=env.device)
+        self.torque_clip_streak = torch.zeros(joint_shape, device=env.device)
+        self.torque_clip_streak_max = torch.zeros(joint_shape, device=env.device)
+        self.effort_limit_count = torch.zeros(joint_shape, device=env.device)
         self.joint_margin_min = torch.full((self.num_envs,), torch.inf, device=env.device)
         self.power_sum = torch.zeros(self.num_envs, device=env.device)
         self.foot_slip_sq = torch.zeros(self.num_envs, device=env.device)
@@ -257,11 +272,31 @@ class VelocityEvaluation:
             self.action_abs_max,
             torch.where(sample_mask, actions.abs().amax(dim=1), torch.zeros_like(self.action_abs_max)),
         )
-        torque = self.robot.data.applied_torque
-        self.torque_sq += torque.square().mean(dim=1) * sample_mask
+        computed_torque = self.robot.data.computed_torque
+        applied_torque = self.robot.data.applied_torque
+        joint_sample_mask = sample_mask[:, None]
+        self.computed_torque_sq += computed_torque.square() * joint_sample_mask
+        self.applied_torque_sq += applied_torque.square() * joint_sample_mask
+        self.computed_torque_abs_max = torch.maximum(
+            self.computed_torque_abs_max,
+            torch.where(joint_sample_mask, computed_torque.abs(), torch.zeros_like(computed_torque)),
+        )
+        self.applied_torque_abs_max = torch.maximum(
+            self.applied_torque_abs_max,
+            torch.where(joint_sample_mask, applied_torque.abs(), torch.zeros_like(applied_torque)),
+        )
+        clipped = ~torch.isclose(computed_torque, applied_torque, rtol=1.0e-5, atol=1.0e-5)
+        self.torque_clip_count += clipped * joint_sample_mask
+        self.torque_clip_streak = torch.where(
+            clipped & joint_sample_mask, self.torque_clip_streak + 1, torch.zeros_like(self.torque_clip_streak)
+        )
+        self.torque_clip_streak_max = torch.maximum(self.torque_clip_streak_max, self.torque_clip_streak)
+        near_effort_limit = applied_torque.abs() >= 0.99 * self.effort_limits
+        self.effort_limit_count += near_effort_limit * joint_sample_mask
+        self.torque_sq += applied_torque.square().mean(dim=1) * sample_mask
         self.torque_abs_max = torch.maximum(
             self.torque_abs_max,
-            torch.where(sample_mask, torque.abs().amax(dim=1), torch.zeros_like(self.torque_abs_max)),
+            torch.where(sample_mask, applied_torque.abs().amax(dim=1), torch.zeros_like(self.torque_abs_max)),
         )
         margin = torch.minimum(
             self.robot.data.joint_pos - self.joint_limits[..., 0],
@@ -270,7 +305,7 @@ class VelocityEvaluation:
         self.joint_margin_min = torch.minimum(
             self.joint_margin_min, torch.where(sample_mask, margin, self.joint_margin_min)
         )
-        self.power_sum += (torque * self.robot.data.joint_vel).abs().sum(dim=1) * sample_mask
+        self.power_sum += (applied_torque * self.robot.data.joint_vel).abs().sum(dim=1) * sample_mask
 
         contact = torch.linalg.vector_norm(self.contact_sensor.data.net_forces_w[:, self.sensor_foot_ids], dim=-1) > 1.0
         foot_slip = torch.linalg.vector_norm(self.robot.data.body_lin_vel_w[:, self.robot_foot_ids, :2], dim=-1)
@@ -339,6 +374,43 @@ class VelocityEvaluation:
             rows.append(row)
         return rows
 
+    def joint_torque_rows(self) -> list[dict]:
+        """Return one torque-diagnostic row per evaluation episode and joint."""
+        rows = []
+        for env_index in range(self.num_envs):
+            case = self.protocol["cases"][env_index // self.protocol["repeats"]]
+            for joint_index, joint_name in enumerate(self.joint_names):
+                rows.append(
+                    {
+                        "case_id": case["id"],
+                        "repeat": env_index % self.protocol["repeats"],
+                        "joint_name": joint_name,
+                        "effort_limit_nm": float(self.effort_limits[joint_index].item()),
+                        "computed_torque_rms_nm": _root(
+                            _value(self.computed_torque_sq[:, joint_index], self.sample_count, env_index)
+                        ),
+                        "applied_torque_rms_nm": _root(
+                            _value(self.applied_torque_sq[:, joint_index], self.sample_count, env_index)
+                        ),
+                        "computed_torque_abs_max_nm": float(
+                            self.computed_torque_abs_max[env_index, joint_index].item()
+                        ),
+                        "applied_torque_abs_max_nm": float(
+                            self.applied_torque_abs_max[env_index, joint_index].item()
+                        ),
+                        "torque_clip_fraction": _value(
+                            self.torque_clip_count[:, joint_index], self.sample_count, env_index
+                        ),
+                        "torque_clip_max_contiguous_s": float(
+                            self.torque_clip_streak_max[env_index, joint_index].item() * self.protocol["step_dt"]
+                        ),
+                        "effort_limit_fraction": _value(
+                            self.effort_limit_count[:, joint_index], self.sample_count, env_index
+                        ),
+                    }
+                )
+        return rows
+
 
 def _percentile(values: list[float], fraction: float) -> float:
     ordered = sorted(values)
@@ -396,6 +468,34 @@ def summarize(rows: list[dict], cases: list[dict]) -> dict:
     return summary
 
 
+def summarize_joint_torques(rows: list[dict]) -> dict:
+    """Aggregate torque diagnostics by joint across all command cases."""
+    metric_names = [
+        "computed_torque_rms_nm",
+        "applied_torque_rms_nm",
+        "computed_torque_abs_max_nm",
+        "applied_torque_abs_max_nm",
+        "torque_clip_fraction",
+        "torque_clip_max_contiguous_s",
+        "effort_limit_fraction",
+    ]
+    summary = {}
+    for joint_name in dict.fromkeys(row["joint_name"] for row in rows):
+        joint_rows = [row for row in rows if row["joint_name"] == joint_name]
+        summary[joint_name] = {
+            "effort_limit_nm": joint_rows[0]["effort_limit_nm"],
+            "metrics": {
+                name: {
+                    "mean": sum(float(row[name]) for row in joint_rows) / len(joint_rows),
+                    "p95": _percentile([float(row[name]) for row in joint_rows], 0.95),
+                    "max": max(float(row[name]) for row in joint_rows),
+                }
+                for name in metric_names
+            },
+        }
+    return summary
+
+
 def checkpoint_metadata(checkpoint: Path, task: str, command: list[str], device: str, num_envs: int) -> dict:
     """Record checkpoint and evaluation-code provenance."""
     digest = hashlib.sha256()
@@ -420,7 +520,7 @@ def checkpoint_metadata(checkpoint: Path, task: str, command: list[str], device:
     }
 
 
-def write_results(output_dir: Path, protocol: dict, metadata: dict, rows: list[dict]) -> None:
+def write_results(output_dir: Path, protocol: dict, metadata: dict, rows: list[dict], joint_rows: list[dict]) -> None:
     """Write the resolved protocol, provenance, episode rows and summary."""
     output_dir.mkdir(parents=True, exist_ok=False)
     with (output_dir / "protocol.yaml").open("w", encoding="utf-8") as file:
@@ -431,6 +531,12 @@ def write_results(output_dir: Path, protocol: dict, metadata: dict, rows: list[d
         writer = csv.DictWriter(file, fieldnames=list(rows[0]))
         writer.writeheader()
         writer.writerows(rows)
+    with (output_dir / "joint_torques.csv").open("w", encoding="utf-8", newline="") as file:
+        writer = csv.DictWriter(file, fieldnames=list(joint_rows[0]))
+        writer.writeheader()
+        writer.writerows(joint_rows)
     with (output_dir / "summary.json").open("w", encoding="utf-8") as file:
-        json.dump(summarize(rows, protocol["cases"]), file, indent=2, allow_nan=False)
+        summary = summarize(rows, protocol["cases"])
+        summary["joints"] = summarize_joint_torques(joint_rows)
+        json.dump(summary, file, indent=2, allow_nan=False)
         file.write("\n")

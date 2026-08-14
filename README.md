@@ -151,8 +151,9 @@ scripts/training.sh eval \
 ```
 
 评估结果写入 checkpoint 所在 run 的 `eval/<checkpoint>/<task>/<timestamp>/`，包括解析后的
-`protocol.yaml`、运行元数据、逐 episode CSV 和汇总 JSON。旧协议可原样重放；协议的 timing、
-repeats 和 seed 不允许在重放时覆盖：
+`protocol.yaml`、运行元数据、逐 episode CSV、逐关节力矩诊断和汇总 JSON。力矩诊断记录
+computed/applied torque、裁剪占比、最长连续裁剪时间和贴近 effort limit 的占比。旧协议可原样重放；
+协议的 timing、repeats 和 seed 不允许在重放时覆盖：
 
 ```bash
 scripts/training.sh eval <checkpoint> --protocol <protocol.yaml>

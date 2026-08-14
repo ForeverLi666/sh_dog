@@ -136,8 +136,9 @@ def main(env_cfg, agent_cfg: RslRlBaseRunnerCfg) -> None:
                 obs = env.get_observations()
 
     rows = evaluation.rows()
+    joint_rows = evaluation.joint_torque_rows()
     metadata = checkpoint_metadata(checkpoint, args_cli.task, original_argv, str(env.unwrapped.device), num_envs)
-    write_results(output_dir, protocol, metadata, rows)
+    write_results(output_dir, protocol, metadata, rows, joint_rows)
     print(f"[INFO] Evaluation written to: {output_dir}")
     env.close()
 

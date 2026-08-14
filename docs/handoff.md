@@ -28,17 +28,19 @@
   汇总结果；`scripts/training.sh eval` 提供 Docker 入口。当前不预设 rough terrain 评估框架。
 - 两套评估均为 21 cases、每 case 8 repeats，共 168 episodes，结果均为 168/168 成功且无 termination。
   randomized 相比 nominal 主要增加 yaw 跟踪和停止恢复误差，但未出现稳定性失效。
-- 本次 run 未保存 ShDog 源码 commit，只能确认训练参数、checkpoint 和 TensorBoard 记录；评估结果由
-  未提交的评估实现生成。正式归档前需要补齐运行元数据，并在干净工作树上重跑评估。
+- 逐关节力矩诊断显示 flat nominal/randomized 均没有长期饱和：最坏连续裁剪分别为 `0.14 s` 和
+  `0.24 s`。限幅主要出现在 hip 和后腿 knee 的短时瞬态，当前 flat 结果不受持续力矩不足支配。
+- 本次 run 未保存 ShDog 源码 commit，只能确认训练参数、checkpoint 和 TensorBoard 记录；后续训练
+  需要补齐 ShDog commit、dirty 状态、完整命令和镜像摘要。
 - Docker 评估首次启动曾在 `omni.platforminfo.plugin` 内偶发 segfault；相同配置随后完成最小启动及
   两套完整评估，GPU 和 CUDA 注入正常。当前不绕开 Docker，也不因单次异常增加自动重试。
 
 ## 下一步
 
-当前证据支持接受 baseline 的平地能力，不修改奖励、噪声、PPO 或观测。下一步先补充逐关节力矩限幅
-占比，确认评估中多次达到 `22 Nm` 是否为持续膝关节饱和；再使用多个 seed 重复 randomized 评估。
-评估实现验证并提交后，在干净工作树重跑两套协议作为正式报告，同时为后续训练记录 ShDog commit、
-dirty 状态、完整命令和镜像摘要。若 Docker 启动崩溃复现，再保留完整 Kit 日志和 crash dump 分析。
+当前证据支持接受 baseline 的平地能力，不修改奖励、噪声、PPO 或观测。进入 rough 长训练前，先用
+电机参数表建立最小的峰值力矩与短时过载模型，并用 flat task 做行为回归；不直接把连续力矩上限改为
+峰值力矩。随后使用多个 seed 重复 randomized 评估。若 Docker 启动崩溃复现，再保留完整 Kit 日志
+和 crash dump 分析。
 
 ## 检查
 
