@@ -9,7 +9,7 @@ from . import agents
 
 
 gym.register(
-    id="ShDog-Velocity-Flat-v0",
+    id="ShDog-Velocity-Flat",
     entry_point="isaaclab.envs:ManagerBasedRLEnv",
     disable_env_checker=True,
     kwargs={
@@ -19,7 +19,7 @@ gym.register(
 )
 
 gym.register(
-    id="ShDog-Velocity-Flat-Play-v0",
+    id="ShDog-Velocity-Flat-Play",
     entry_point="isaaclab.envs:ManagerBasedRLEnv",
     disable_env_checker=True,
     kwargs={

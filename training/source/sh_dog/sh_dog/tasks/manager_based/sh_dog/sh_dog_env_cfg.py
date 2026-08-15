@@ -23,6 +23,7 @@ from isaaclab.terrains import TerrainImporterCfg
 from isaaclab.utils import configclass
 from isaaclab.utils.noise import AdditiveUniformNoiseCfg as Unoise
 
+from sh_dog.actuators import SH_DOG_ACTUATOR_DT
 from sh_dog.assets import JOINT_ORDER, SH_DOG_CFG
 
 from . import mdp
@@ -304,7 +305,7 @@ class ShDogFlatEnvCfg(ManagerBasedRLEnvCfg):
     def __post_init__(self) -> None:
         self.decimation = 4
         self.episode_length_s = 20.0
-        self.sim.dt = 0.005
+        self.sim.dt = SH_DOG_ACTUATOR_DT
         self.sim.render_interval = self.decimation
         self.sim.physics_material = self.scene.terrain.physics_material
         self.scene.contact_forces.update_period = self.sim.dt

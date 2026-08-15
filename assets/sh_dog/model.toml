@@ -36,6 +36,13 @@ peak_torque_nm = 36.0
 no_load_speed_rpm = 480.0
 low_speed_equivalent_inertia_kg_m2 = 0.012
 
+[actuator.torque_speed]
+torque_safety_factor = 0.9
+max_speed_rpm = [280.0, 320.0, 390.0, 426.0, 430.0]
+max_torque_nm = [36.0, 30.0, 20.0, 11.0, 5.0]
+thermal_speed_rpm = [100.0, 160.0, 220.0, 280.0, 340.0, 400.0]
+thermal_torque_nm = [11.2, 11.0, 10.5, 9.87, 9.4, 9.3]
+
 [actuator.overload]
 time_safety_factor = 0.9
 rotating_torque_nm = [17.0, 20.0, 25.0, 30.0, 36.0]
@@ -43,6 +50,10 @@ rotating_time_s = [200.0, 36.0, 18.0, 8.0, 4.0]
 stall_rated_torque_nm = 8.0
 stall_torque_nm = [11.0, 17.0, 25.0, 30.0, 36.0]
 stall_time_s = [200.0, 15.0, 5.0, 1.0, 1.0]
+stall_blend_speed_rpm = 100.0
+recovery_time_s = 200.0
+initial_budget_range = [0.0, 1.0]
+release_budget = 0.2
 
 [additional_reduction]
 abad = 1.0

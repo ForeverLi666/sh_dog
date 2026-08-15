@@ -8,11 +8,13 @@
 - `SH_DOG_CFG` 使用柔顺运动 PD：abad `25/1`、hip `30/1.2`、knee `40/2`。
 - `SH_DOG_STAND_CFG` 使用已验证站起 PD：abad `40/1.5`、hip `60/2`、knee `80/3`。
 - RS06 armature：abad/hip `0.012 kg·m²`，knee 最终关节侧 `0.048 kg·m²`。
+- `SH_DOG_CFG` 已启用 `ShDogDcMotor`：按厂家最大/热平衡 T-N 曲线裁剪，使用跨扭矩共享的过载预算，
+  episode 初始预算从 `[0, 1]` 随机化；原线性 `DCMotorCfg` 配置以注释保留用于楼梯对比。
 - PhysX articulation solver 为 position `4`、velocity `2`。
 - `stand.py` 已验证从下蹲姿态经 `0.5 s` 插值稳定站起；collision 可作为训练基线。
-- 已建立 `ShDog-Velocity-Flat-v0` 平地速度跟踪任务及最小 RSL-RL PPO 配置。
-- `ShDog-Velocity-Flat-Play-v0` 固定零命令、关闭 observation corruption，用于先验收站立、reset、
-  接触、观测和 action；任务只使用 `SH_DOG_CFG`。
+- 已建立 `ShDog-Velocity-Flat` 平地速度跟踪任务及最小 RSL-RL PPO 配置。
+- `ShDog-Velocity-Flat-Play` 当前固定 `ang_vel_z=1.5 rad/s`、关闭 observation corruption，用于验收
+  reset、接触、观测和 action；任务只使用 `SH_DOG_CFG`。
 - actor 为单帧 45D MLP，不含实机难以稳定获取的 base linear velocity；critic 使用 60D 仿真特权
   observation。PPO 网络和超参数对齐 Unitree Go2 velocity 配置。
 - 平地任务直接继承 `ManagerBasedRLEnvCfg`；scene、MDP 配置、奖励和仿真参数集中在
@@ -40,10 +42,10 @@
 
 ## 下一步
 
-当前证据支持接受 baseline 的平地能力，不修改奖励、噪声、PPO 或观测。进入 rough 长训练前，先用
-电机参数表建立最小的峰值力矩与短时过载模型，并用 flat task 做行为回归；不直接把连续力矩上限改为
-峰值力矩。随后使用多个 seed 重复 randomized 评估。若 Docker 启动崩溃复现，再保留完整 Kit 日志
-和 crash dump 分析。
+当前证据支持接受 baseline 的平地能力，不修改奖励、噪声、PPO 或观测。下一步先用 flat task 对
+`ShDogDcMotor` 做冒烟训练及 nominal/randomized 回归，再建立连续楼梯评估，对比保留的线性
+`DCMotorCfg` 基线在冷机、半预算和热机状态下的力矩使用与通过率。随后使用多个 seed 重复评估。
+若 Docker 启动崩溃复现，再保留完整 Kit 日志和 crash dump 分析。
 
 ## 检查
 
@@ -52,12 +54,12 @@ python scripts/normalize_urdf.py
 python scripts/build_usd.py
 python training/scripts/list_envs.py
 python training/scripts/stand.py
-python training/scripts/zero_agent.py --task ShDog-Velocity-Flat-Play-v0 --num_envs 1
+python training/scripts/zero_agent.py --task ShDog-Velocity-Flat-Play --num_envs 1
 scripts/training.sh eval \
   artifacts/training/logs/rsl_rl/sh_dog_baseline/<run>/model_9999.pt
 scripts/training.sh eval \
   artifacts/training/logs/rsl_rl/sh_dog_baseline/<run>/model_9999.pt \
-  --task ShDog-Velocity-Flat-v0
+  --task ShDog-Velocity-Flat
 ```
 
 USD 与训练产物不提交 Git。模型约定见 `docs/robot_model.md`，工程边界见 `docs/architecture.md`。

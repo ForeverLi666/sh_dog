@@ -13,14 +13,14 @@ Usage:
   scripts/training.sh tensorboard [options]
 
 Train options:
-  --task TASK              Task name (default: ShDog-Velocity-Flat-v0)
+  --task TASK              Task name (default: ShDog-Velocity-Flat)
   --num-envs N             Environment count (default: 4096)
   --max-iterations N       Training iterations (default: 10000)
   --logger LOGGER          RSL-RL logger (default: tensorboard)
   --shm-size SIZE          Container shared memory (default: 2gb)
 
 Eval options:
-  --task TASK              Evaluation task (default: ShDog-Velocity-Flat-Play-v0)
+  --task TASK              Evaluation task (default: ShDog-Velocity-Flat-Play)
   --protocol PATH          Replay a repository-relative protocol YAML
   --shm-size SIZE          Container shared memory (default: 2gb)
 
@@ -62,7 +62,7 @@ run_train() {
     [[ $# -gt 0 ]] || die "train requires RUN_NAME"
 
     local run_name="$1"
-    local task="ShDog-Velocity-Flat-v0"
+    local task="ShDog-Velocity-Flat"
     local num_envs=4096
     local max_iterations=10000
     local logger="tensorboard"
@@ -143,7 +143,7 @@ run_eval() {
 
     local checkpoint
     checkpoint="$(resolve_repo_file "$1")"
-    local task="ShDog-Velocity-Flat-Play-v0"
+    local task="ShDog-Velocity-Flat-Play"
     local protocol=""
     local shm_size="${SH_DOG_SHM_SIZE:-2gb}"
     local -a extra_args=()

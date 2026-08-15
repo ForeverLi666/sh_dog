@@ -20,8 +20,8 @@ parser = argparse.ArgumentParser(description="Evaluate an RSL-RL velocity policy
 parser.add_argument(
     "--task",
     type=str,
-    default="ShDog-Velocity-Flat-Play-v0",
-    choices=("ShDog-Velocity-Flat-Play-v0", "ShDog-Velocity-Flat-v0"),
+    default="ShDog-Velocity-Flat-Play",
+    choices=("ShDog-Velocity-Flat-Play", "ShDog-Velocity-Flat"),
     help="Nominal Play task or randomized training task.",
 )
 parser.add_argument(

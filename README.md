@@ -36,25 +36,27 @@ python -m pip install --no-deps --editable training/source/sh_dog
 python training/scripts/list_envs.py
 ```
 
-预期列出 `ShDog-Velocity-Flat-v0` 和 `ShDog-Velocity-Flat-Play-v0`。
+预期列出 `ShDog-Velocity-Flat` 和 `ShDog-Velocity-Flat-Play`。
 
 ## 验证平地任务
 
-使用 Play 环境观察零命令、零 action 站立。任务使用运动配置 `SH_DOG_CFG`，不使用状态机站起配置：
+使用 Play 环境观察零 action 站立。Play 当前固定 `ang_vel_z=1.5 rad/s` 命令；任务使用运动配置
+`SH_DOG_CFG`，不使用状态机站起配置：
 
 ```bash
-python training/scripts/zero_agent.py --task ShDog-Velocity-Flat-Play-v0 --num_envs 1
+python training/scripts/zero_agent.py --task ShDog-Velocity-Flat-Play --num_envs 1
 ```
 
 `sh_dog_baseline` 对齐 Unitree 开源 Go2 velocity 的单帧 MLP、45D actor、60D 特权 critic、PPO、
 速度课程、随机化和奖励；保留 ShDog 资产、运动 PD、关节顺序及接触名称。action scale 为
-`0.25 rad`。
+`0.25 rad`。`SH_DOG_CFG` 使用 `ShDogDcMotor` 按厂家 T-N 曲线和共享短时过载预算约束力矩；模型细节
+见 `docs/robot_model.md`。
 
 最小 PPO 冒烟命令为：
 
 ```bash
 python training/scripts/rsl_rl/train.py \
-  --task ShDog-Velocity-Flat-v0 --headless --num_envs 64 --max_iterations 2
+  --task ShDog-Velocity-Flat --headless --num_envs 64 --max_iterations 2
 ```
 
 ## 验证站立
@@ -99,7 +101,7 @@ docker compose -f docker/compose.train.yaml run --rm train \
 ```
 
 正式训练使用仓库级 Docker 入口。默认运行
-`ShDog-Velocity-Flat-v0`、4096 个环境、10000 iterations，并记录 TensorBoard 日志：
+`ShDog-Velocity-Flat`、4096 个环境、10000 iterations，并记录 TensorBoard 日志：
 
 ```bash
 scripts/training.sh train baseline_10k
@@ -147,7 +149,7 @@ scripts/training.sh eval \
 ```bash
 scripts/training.sh eval \
   artifacts/training/logs/rsl_rl/sh_dog_baseline/<run>/model_9999.pt \
-  --task ShDog-Velocity-Flat-v0
+  --task ShDog-Velocity-Flat
 ```
 
 评估结果写入 checkpoint 所在 run 的 `eval/<checkpoint>/<task>/<timestamp>/`，包括解析后的
@@ -158,6 +160,8 @@ computed/applied torque、裁剪占比、真实额定力矩超限、超限速度
 ```bash
 scripts/training.sh eval <checkpoint> --protocol <protocol.yaml>
 ```
+
+任务名移除 `-v0` 前生成的评估协议仍可由新任务名原样重放。
 
 当前评估只支持 flat task。rough terrain 建立后再按实际 terrain 类型和难度扩展，不在当前入口中
 预设地形框架。

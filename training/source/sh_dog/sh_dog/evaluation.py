@@ -15,6 +15,10 @@ from sh_dog.assets import ACTUATOR, REDUCTION
 
 PROTOCOL_VERSION = 1
 COMMAND_AXES = ("lin_vel_x", "lin_vel_y", "ang_vel_z")
+TASK_ALIASES = {
+    "ShDog-Velocity-Flat-v0": "ShDog-Velocity-Flat",
+    "ShDog-Velocity-Flat-Play-v0": "ShDog-Velocity-Flat-Play",
+}
 
 
 def _resolved_ranges(command_cfg) -> dict[str, list[float]]:
@@ -120,7 +124,8 @@ def load_protocol(path: Path, task: str, step_dt: float) -> dict:
         raise ValueError("protocol root must be a mapping")
     if protocol.get("version") != PROTOCOL_VERSION:
         raise ValueError(f"unsupported protocol version: {protocol.get('version')}")
-    if protocol.get("task") != task:
+    protocol_task = TASK_ALIASES.get(protocol.get("task"), protocol.get("task"))
+    if protocol_task != task:
         raise ValueError(f"protocol task is {protocol.get('task')}, requested task is {task}")
     if not math.isclose(float(protocol.get("step_dt", -1.0)), step_dt, rel_tol=0.0, abs_tol=1.0e-12):
         raise ValueError(f"protocol step_dt is {protocol.get('step_dt')}, task step_dt is {step_dt}")
@@ -166,11 +171,13 @@ def _overload_rate(
     torque: torch.Tensor, rated_torque: float, torque_points: list[float], time_points: list[float]
 ) -> torch.Tensor:
     """Return conservative overload-budget consumption in inverse seconds."""
+    torque_factor = ACTUATOR["torque_speed"]["torque_safety_factor"]
     safety_factor = ACTUATOR["overload"]["time_safety_factor"]
     rate = torch.zeros_like(torque)
-    lower_torque = rated_torque
+    lower_torque = rated_torque * torque_factor
     lower_rate = 0.0
     for upper_torque, upper_time in zip(torque_points, time_points, strict=True):
+        upper_torque *= torque_factor
         upper_rate = 1.0 / (upper_time * safety_factor)
         fraction = (torque - lower_torque) / (upper_torque - lower_torque)
         rate = torch.where(
@@ -674,6 +681,7 @@ def write_results(output_dir: Path, protocol: dict, metadata: dict, rows: list[d
         summary = summarize(rows, protocol["cases"])
         summary["torque_diagnostics"] = {
             "sampling_step_s": protocol["step_dt"],
+            "overload_torque_safety_factor": ACTUATOR["torque_speed"]["torque_safety_factor"],
             "overload_time_safety_factor": ACTUATOR["overload"]["time_safety_factor"],
         }
         summary["joints"] = summarize_joint_torques(joint_rows)
