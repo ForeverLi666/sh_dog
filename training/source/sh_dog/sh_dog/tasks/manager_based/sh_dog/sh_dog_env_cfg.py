@@ -63,12 +63,12 @@ class CommandsCfg:
         ranges=mdp.UniformLevelVelocityCommandCfg.Ranges(
             lin_vel_x=(-0.1, 0.1),
             lin_vel_y=(-0.1, 0.1),
-            ang_vel_z=(-1.0, 1.0),
+            ang_vel_z=(-1.5, 1.5),
         ),
         limit_ranges=mdp.UniformLevelVelocityCommandCfg.Ranges(
             lin_vel_x=(-1.0, 1.0),
-            lin_vel_y=(-0.4, 0.4),
-            ang_vel_z=(-1.0, 1.0),
+            lin_vel_y=(-0.7, 0.7),
+            ang_vel_z=(-1.5, 1.5),
         ),
     )
 
@@ -327,7 +327,7 @@ class ShDogFlatEnvCfg_PLAY(ShDogFlatEnvCfg):
         self.commands.base_velocity.rel_standing_envs = 0.0
         self.commands.base_velocity.ranges.lin_vel_x = (0.0, 0.0)
         self.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.0)
-        self.commands.base_velocity.ranges.ang_vel_z = (0.0, 0.0)
+        self.commands.base_velocity.ranges.ang_vel_z = (1.5, 1.5)
         self.events.reset_joints.params["velocity_range"] = (0.0, 0.0)
         self.events.reset_base.params["pose_range"] = {
             "x": (0.0, 0.0),
