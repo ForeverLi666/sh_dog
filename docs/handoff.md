@@ -30,6 +30,9 @@
   randomized 相比 nominal 主要增加 yaw 跟踪和停止恢复误差，但未出现稳定性失效。
 - 逐关节力矩诊断显示 flat nominal/randomized 均没有长期饱和：最坏连续裁剪分别为 `0.14 s` 和
   `0.24 s`。限幅主要出现在 hip 和后腿 knee 的短时瞬态，当前 flat 结果不受持续力矩不足支配。
+- `v1.0_10k` 的 flat 额定力矩超限主要发生在低于 `100 rpm` 的 hip 和后腿 knee；按允许时间乘
+  `0.9` 后的堵转表估计，12 s randomized episode 最坏过载预算消耗约 `1.63%`。该结果支持继续用
+  flat 做行为回归，但不能替代楼梯、斜坡和碎石等持续冲击工况验证。
 - 本次 run 未保存 ShDog 源码 commit，只能确认训练参数、checkpoint 和 TensorBoard 记录；后续训练
   需要补齐 ShDog commit、dirty 状态、完整命令和镜像摘要。
 - Docker 评估首次启动曾在 `omni.platforminfo.plugin` 内偶发 segfault；相同配置随后完成最小启动及

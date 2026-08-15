@@ -31,10 +31,18 @@ base_height_m = 0.40
 
 [actuator]
 model = "ROBOstride 06"
-rated_torque_nm = 36.0
+rated_torque_nm = 11.0
 peak_torque_nm = 36.0
 no_load_speed_rpm = 480.0
 low_speed_equivalent_inertia_kg_m2 = 0.012
+
+[actuator.overload]
+time_safety_factor = 0.9
+rotating_torque_nm = [17.0, 20.0, 25.0, 30.0, 36.0]
+rotating_time_s = [200.0, 36.0, 18.0, 8.0, 4.0]
+stall_rated_torque_nm = 8.0
+stall_torque_nm = [11.0, 17.0, 25.0, 30.0, 36.0]
+stall_time_s = [200.0, 15.0, 5.0, 1.0, 1.0]
 
 [additional_reduction]
 abad = 1.0

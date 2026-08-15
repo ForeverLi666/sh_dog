@@ -11,6 +11,8 @@ from pathlib import Path
 import torch
 import yaml
 
+from sh_dog.assets import ACTUATOR, REDUCTION
+
 PROTOCOL_VERSION = 1
 COMMAND_AXES = ("lin_vel_x", "lin_vel_y", "ang_vel_z")
 
@@ -160,6 +162,27 @@ def _root(value: float | None) -> float | None:
     return math.sqrt(max(value, 0.0)) if value is not None else None
 
 
+def _overload_rate(
+    torque: torch.Tensor, rated_torque: float, torque_points: list[float], time_points: list[float]
+) -> torch.Tensor:
+    """Return conservative overload-budget consumption in inverse seconds."""
+    safety_factor = ACTUATOR["overload"]["time_safety_factor"]
+    rate = torch.zeros_like(torque)
+    lower_torque = rated_torque
+    lower_rate = 0.0
+    for upper_torque, upper_time in zip(torque_points, time_points, strict=True):
+        upper_rate = 1.0 / (upper_time * safety_factor)
+        fraction = (torque - lower_torque) / (upper_torque - lower_torque)
+        rate = torch.where(
+            (torque > lower_torque) & (torque <= upper_torque),
+            lower_rate + fraction * (upper_rate - lower_rate),
+            rate,
+        )
+        lower_torque = upper_torque
+        lower_rate = upper_rate
+    return torch.where(torque > lower_torque, lower_rate, rate)
+
+
 class VelocityEvaluation:
     """Apply resolved commands and accumulate one evaluation episode per environment."""
 
@@ -174,6 +197,10 @@ class VelocityEvaluation:
             self.effort_limits[actuator.joint_indices] = actuator.effort_limit[0]
         if torch.any(self.effort_limits <= 0.0):
             raise ValueError("all evaluated joints must have a positive actuator effort limit")
+        self.motor_reductions = torch.tensor(
+            [REDUCTION[name.split("_")[-2]] for name in self.joint_names], device=env.device
+        )
+        self.rated_torques = ACTUATOR["rated_torque_nm"] * self.motor_reductions
         self.contact_sensor = env.scene.sensors["contact_forces"]
         self.robot_foot_ids, _ = self.robot.find_bodies(".*_foot_link")
         self.sensor_foot_ids, _ = self.contact_sensor.find_bodies(".*_foot_link")
@@ -209,6 +236,16 @@ class VelocityEvaluation:
         self.torque_clip_streak = torch.zeros(joint_shape, device=env.device)
         self.torque_clip_streak_max = torch.zeros(joint_shape, device=env.device)
         self.effort_limit_count = torch.zeros(joint_shape, device=env.device)
+        self.computed_over_rated_count = torch.zeros(joint_shape, device=env.device)
+        self.applied_over_rated_count = torch.zeros(joint_shape, device=env.device)
+        self.computed_over_rated_streak = torch.zeros(joint_shape, device=env.device)
+        self.applied_over_rated_streak = torch.zeros(joint_shape, device=env.device)
+        self.computed_over_rated_streak_max = torch.zeros(joint_shape, device=env.device)
+        self.applied_over_rated_streak_max = torch.zeros(joint_shape, device=env.device)
+        self.applied_over_rated_speed_bin_count = torch.zeros((*joint_shape, 3), device=env.device)
+        self.motor_speed_abs_max_rpm = torch.zeros(joint_shape, device=env.device)
+        self.rotating_overload_budget = torch.zeros(joint_shape, device=env.device)
+        self.stall_overload_budget = torch.zeros(joint_shape, device=env.device)
         self.joint_margin_min = torch.full((self.num_envs,), torch.inf, device=env.device)
         self.power_sum = torch.zeros(self.num_envs, device=env.device)
         self.foot_slip_sq = torch.zeros(self.num_envs, device=env.device)
@@ -293,6 +330,62 @@ class VelocityEvaluation:
         self.torque_clip_streak_max = torch.maximum(self.torque_clip_streak_max, self.torque_clip_streak)
         near_effort_limit = applied_torque.abs() >= 0.99 * self.effort_limits
         self.effort_limit_count += near_effort_limit * joint_sample_mask
+        computed_over_rated = computed_torque.abs() > self.rated_torques
+        applied_over_rated = applied_torque.abs() > self.rated_torques
+        self.computed_over_rated_count += computed_over_rated * joint_sample_mask
+        self.applied_over_rated_count += applied_over_rated * joint_sample_mask
+        self.computed_over_rated_streak = torch.where(
+            computed_over_rated & joint_sample_mask,
+            self.computed_over_rated_streak + 1,
+            torch.zeros_like(self.computed_over_rated_streak),
+        )
+        self.applied_over_rated_streak = torch.where(
+            applied_over_rated & joint_sample_mask,
+            self.applied_over_rated_streak + 1,
+            torch.zeros_like(self.applied_over_rated_streak),
+        )
+        self.computed_over_rated_streak_max = torch.maximum(
+            self.computed_over_rated_streak_max, self.computed_over_rated_streak
+        )
+        self.applied_over_rated_streak_max = torch.maximum(
+            self.applied_over_rated_streak_max, self.applied_over_rated_streak
+        )
+        motor_torque = applied_torque.abs() / self.motor_reductions
+        motor_speed_rpm = self.robot.data.joint_vel.abs() * self.motor_reductions * 60.0 / (2.0 * math.pi)
+        self.applied_over_rated_speed_bin_count[..., 0] += (
+            applied_over_rated & (motor_speed_rpm < 10.0) & joint_sample_mask
+        )
+        self.applied_over_rated_speed_bin_count[..., 1] += (
+            applied_over_rated & (motor_speed_rpm >= 10.0) & (motor_speed_rpm < 100.0) & joint_sample_mask
+        )
+        self.applied_over_rated_speed_bin_count[..., 2] += (
+            applied_over_rated & (motor_speed_rpm >= 100.0) & joint_sample_mask
+        )
+        self.motor_speed_abs_max_rpm = torch.maximum(
+            self.motor_speed_abs_max_rpm,
+            torch.where(joint_sample_mask, motor_speed_rpm, torch.zeros_like(motor_speed_rpm)),
+        )
+        overload_cfg = ACTUATOR["overload"]
+        self.rotating_overload_budget += (
+            _overload_rate(
+                motor_torque,
+                ACTUATOR["rated_torque_nm"],
+                overload_cfg["rotating_torque_nm"],
+                overload_cfg["rotating_time_s"],
+            )
+            * self.protocol["step_dt"]
+            * joint_sample_mask
+        )
+        self.stall_overload_budget += (
+            _overload_rate(
+                motor_torque,
+                overload_cfg["stall_rated_torque_nm"],
+                overload_cfg["stall_torque_nm"],
+                overload_cfg["stall_time_s"],
+            )
+            * self.protocol["step_dt"]
+            * joint_sample_mask
+        )
         self.torque_sq += applied_torque.square().mean(dim=1) * sample_mask
         self.torque_abs_max = torch.maximum(
             self.torque_abs_max,
@@ -407,6 +500,37 @@ class VelocityEvaluation:
                         "effort_limit_fraction": _value(
                             self.effort_limit_count[:, joint_index], self.sample_count, env_index
                         ),
+                        "rated_torque_nm": float(self.rated_torques[joint_index].item()),
+                        "computed_over_rated_fraction": _value(
+                            self.computed_over_rated_count[:, joint_index], self.sample_count, env_index
+                        ),
+                        "applied_over_rated_fraction": _value(
+                            self.applied_over_rated_count[:, joint_index], self.sample_count, env_index
+                        ),
+                        "computed_over_rated_max_contiguous_s": float(
+                            self.computed_over_rated_streak_max[env_index, joint_index].item()
+                            * self.protocol["step_dt"]
+                        ),
+                        "applied_over_rated_max_contiguous_s": float(
+                            self.applied_over_rated_streak_max[env_index, joint_index].item()
+                            * self.protocol["step_dt"]
+                        ),
+                        "applied_over_rated_lt_10_rpm_fraction": _value(
+                            self.applied_over_rated_speed_bin_count[:, joint_index, 0], self.sample_count, env_index
+                        ),
+                        "applied_over_rated_10_to_100_rpm_fraction": _value(
+                            self.applied_over_rated_speed_bin_count[:, joint_index, 1], self.sample_count, env_index
+                        ),
+                        "applied_over_rated_ge_100_rpm_fraction": _value(
+                            self.applied_over_rated_speed_bin_count[:, joint_index, 2], self.sample_count, env_index
+                        ),
+                        "motor_speed_abs_max_rpm": float(
+                            self.motor_speed_abs_max_rpm[env_index, joint_index].item()
+                        ),
+                        "rotating_overload_budget": float(
+                            self.rotating_overload_budget[env_index, joint_index].item()
+                        ),
+                        "stall_overload_budget": float(self.stall_overload_budget[env_index, joint_index].item()),
                     }
                 )
         return rows
@@ -478,12 +602,23 @@ def summarize_joint_torques(rows: list[dict]) -> dict:
         "torque_clip_fraction",
         "torque_clip_max_contiguous_s",
         "effort_limit_fraction",
+        "computed_over_rated_fraction",
+        "applied_over_rated_fraction",
+        "computed_over_rated_max_contiguous_s",
+        "applied_over_rated_max_contiguous_s",
+        "applied_over_rated_lt_10_rpm_fraction",
+        "applied_over_rated_10_to_100_rpm_fraction",
+        "applied_over_rated_ge_100_rpm_fraction",
+        "motor_speed_abs_max_rpm",
+        "rotating_overload_budget",
+        "stall_overload_budget",
     ]
     summary = {}
     for joint_name in dict.fromkeys(row["joint_name"] for row in rows):
         joint_rows = [row for row in rows if row["joint_name"] == joint_name]
         summary[joint_name] = {
             "effort_limit_nm": joint_rows[0]["effort_limit_nm"],
+            "rated_torque_nm": joint_rows[0]["rated_torque_nm"],
             "metrics": {
                 name: {
                     "mean": sum(float(row[name]) for row in joint_rows) / len(joint_rows),
@@ -537,6 +672,10 @@ def write_results(output_dir: Path, protocol: dict, metadata: dict, rows: list[d
         writer.writerows(joint_rows)
     with (output_dir / "summary.json").open("w", encoding="utf-8") as file:
         summary = summarize(rows, protocol["cases"])
+        summary["torque_diagnostics"] = {
+            "sampling_step_s": protocol["step_dt"],
+            "overload_time_safety_factor": ACTUATOR["overload"]["time_safety_factor"],
+        }
         summary["joints"] = summarize_joint_torques(joint_rows)
         json.dump(summary, file, indent=2, allow_nan=False)
         file.write("\n")

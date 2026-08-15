@@ -51,7 +51,7 @@ SH_DOG_CFG = ArticulationCfg(
     actuators={
         "abad_hip": DCMotorCfg(
             joint_names_expr=[".*_abad_joint", ".*_hip_joint"],
-            effort_limit=ACTUATOR["rated_torque_nm"],
+            effort_limit=ACTUATOR["peak_torque_nm"],
             saturation_effort=ACTUATOR["peak_torque_nm"],
             velocity_limit=ACTUATOR["no_load_speed_rpm"] * 2.0 * math.pi / 60.0,
             stiffness={".*_abad_joint": 25.0, ".*_hip_joint": 30.0},
@@ -61,7 +61,7 @@ SH_DOG_CFG = ArticulationCfg(
         ),
         "knee": DCMotorCfg(
             joint_names_expr=[".*_knee_joint"],
-            effort_limit=joint_side(ACTUATOR["rated_torque_nm"], "knee"),
+            effort_limit=joint_side(ACTUATOR["peak_torque_nm"], "knee"),
             saturation_effort=joint_side(ACTUATOR["peak_torque_nm"], "knee"),
             velocity_limit=ACTUATOR["no_load_speed_rpm"] * 2.0 * math.pi / 60.0 / REDUCTION["knee"],
             stiffness=40.0,
