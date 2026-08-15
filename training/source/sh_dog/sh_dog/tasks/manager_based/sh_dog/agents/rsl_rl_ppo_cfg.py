@@ -3,7 +3,7 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Minimal RSL-RL PPO configuration for ShDog flat locomotion."""
+"""Minimal RSL-RL PPO configurations for ShDog locomotion."""
 
 from isaaclab.utils import configclass
 
@@ -15,7 +15,7 @@ class ShDogFlatPPORunnerCfg(RslRlOnPolicyRunnerCfg):
     num_steps_per_env = 24
     max_iterations = 50000
     save_interval = 100
-    experiment_name = "sh_dog_baseline"
+    experiment_name = "sh_dog_flat"
     obs_groups = {"policy": ["policy"], "critic": ["critic"]}
     policy = RslRlPpoActorCriticCfg(
         init_noise_std=1.0,
@@ -39,3 +39,8 @@ class ShDogFlatPPORunnerCfg(RslRlOnPolicyRunnerCfg):
         desired_kl=0.01,
         max_grad_norm=1.0,
     )
+
+
+@configclass
+class ShDogRoughPPORunnerCfg(ShDogFlatPPORunnerCfg):
+    experiment_name = "sh_dog_rough"

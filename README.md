@@ -36,7 +36,8 @@ python -m pip install --no-deps --editable training/source/sh_dog
 python training/scripts/list_envs.py
 ```
 
-预期列出 `ShDog-Velocity-Flat` 和 `ShDog-Velocity-Flat-Play`。
+预期列出 flat/rough 各自的训练与 Play 任务：`ShDog-Velocity-Flat`、`ShDog-Velocity-Flat-Play`、
+`ShDog-Velocity-Rough` 和 `ShDog-Velocity-Rough-Play`。
 
 ## 验证平地任务
 
@@ -58,6 +59,18 @@ python training/scripts/zero_agent.py --task ShDog-Velocity-Flat-Play --num_envs
 python training/scripts/rsl_rl/train.py \
   --task ShDog-Velocity-Flat --headless --num_envs 64 --max_iterations 2
 ```
+
+rough 任务使用降低难度的官方 terrain generator、terrain curriculum，并向 actor/critic 提供
+`1.6 m × 1.0 m`、`0.1 m` 分辨率的高度扫描。使用独立实验目录运行冒烟：
+
+```bash
+scripts/training.sh train rough_smoke \
+  --task ShDog-Velocity-Rough \
+  --num-envs 64 \
+  --max-iterations 2
+```
+
+带高度扫描的 actor 当前用于仿真对比，不直接作为无对应实机感知输入的部署策略。
 
 ## 验证站立
 

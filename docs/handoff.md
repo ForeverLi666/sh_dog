@@ -18,7 +18,13 @@
 - actor 为单帧 45D MLP，不含实机难以稳定获取的 base linear velocity；critic 使用 60D 仿真特权
   observation。PPO 网络和超参数对齐 Unitree Go2 velocity 配置。
 - 平地任务直接继承 `ManagerBasedRLEnvCfg`；scene、MDP 配置、奖励和仿真参数集中在
-  `sh_dog_env_cfg.py`，不继承 rough task 配置；少量自定义计算按职责位于 `mdp/`。
+  `sh_dog_flat_env_cfg.py`，不继承 rough task 配置；少量自定义计算按职责位于 `mdp/`。
+- 已新增独立 `ShDog-Velocity-Rough` 任务，继承 flat 的命令、动作、奖励、随机化和 termination，
+  仅替换官方 rough terrain generator、增加 terrain curriculum 与 actor/critic 高度扫描。rough PPO
+  参数保持不变，仅使用独立的 `sh_dog_rough` 实验目录。
+- rough 地形使用官方比例和几何，降低为 stairs `0.05–0.16 m`、boxes `0.05–0.10 m`、random rough
+  `0.02–0.05 m`/`0.01 m` step、slopes `0–0.25`；初始最高 terrain level 为 `2`，课程仍覆盖全部
+  `10` 个等级。
 - `sh_dog_baseline` 对齐 Unitree 开源 Go2 velocity 当前启用的速度课程、随机化、奖励、termination
   和 PPO；仅 flat terrain，不引入其注释掉的楼梯、height scan 或 observation history。
 - 仓库级可执行工具统一位于 `scripts/`；`sync_training.sh` 可将源码和本地生成 USD 严格镜像到训练
@@ -42,9 +48,9 @@
 
 ## 下一步
 
-当前证据支持接受 baseline 的平地能力，不修改奖励、噪声、PPO 或观测。下一步先用 flat task 对
-`ShDogDcMotor` 做冒烟训练及 nominal/randomized 回归，再建立连续楼梯评估，对比保留的线性
-`DCMotorCfg` 基线在冷机、半预算和热机状态下的力矩使用与通过率。随后使用多个 seed 重复评估。
+当前证据支持接受 baseline 的平地能力，不修改奖励、噪声或 PPO。下一步先完成 rough 冒烟，再使用
+完全相同的 rough 配置分别训练注释保留的线性 `DCMotorCfg` 和 `ShDogDcMotor`，比较 computed/applied
+torque、额定超限、预算消耗和地形通过率。单 seed 只能用于初筛，确认差异后再使用多个 seed 重复。
 若 Docker 启动崩溃复现，再保留完整 Kit 日志和 crash dump 分析。
 
 ## 检查
@@ -55,6 +61,8 @@ python scripts/build_usd.py
 python training/scripts/list_envs.py
 python training/scripts/stand.py
 python training/scripts/zero_agent.py --task ShDog-Velocity-Flat-Play --num_envs 1
+scripts/training.sh train rough_smoke \
+  --task ShDog-Velocity-Rough --num-envs 64 --max-iterations 2
 scripts/training.sh eval \
   artifacts/training/logs/rsl_rl/sh_dog_baseline/<run>/model_9999.pt
 scripts/training.sh eval \
