@@ -32,8 +32,9 @@
 - 已完成 `baseline_10k` 的 4096 environments、10000 iterations 训练；最终 checkpoint 为
   `model_9999.pt`。本机 Play 已观察到策略可以全向移动；TensorBoard 日志审计以及 nominal、
   randomized 定量评估均已完成。
-- `training/scripts/rsl_rl/eval.py` 从 task 命令包络生成 flat 归一化评估协议，输出逐 episode 指标和
-  汇总结果；`scripts/training.sh eval` 提供 Docker 入口。当前不预设 rough terrain 评估框架。
+- `training/scripts/rsl_rl/eval.py` 从 task 生成可重放评估协议，输出逐 episode 指标和汇总结果；
+  `scripts/training.sh eval` 提供 Docker 入口。rough 协议固定覆盖 6 类地形、等级 `0/3/6/9` 和
+  `0.5/1.0 m/s` 前进命令，并记录前向进度、横向/yaw 漂移及原有力矩诊断。
 - 两套评估均为 21 cases、每 case 8 repeats，共 168 episodes，结果均为 168/168 成功且无 termination。
   randomized 相比 nominal 主要增加 yaw 跟踪和停止恢复误差，但未出现稳定性失效。
 - 逐关节力矩诊断显示 flat nominal/randomized 均没有长期饱和：最坏连续裁剪分别为 `0.14 s` 和
@@ -41,6 +42,12 @@
 - `v1.0_10k` 的 flat 额定力矩超限主要发生在低于 `100 rpm` 的 hip 和后腿 knee；按允许时间乘
   `0.9` 后的堵转表估计，12 s randomized episode 最坏过载预算消耗约 `1.63%`。该结果支持继续用
   flat 做行为回归，但不能替代楼梯、斜坡和碎石等持续冲击工况验证。
+- rough `model_3000.pt` 已完成 192 episode nominal 固定地形评估：存活率 `93.2%`，前进至少 `3 m`
+  的穿越率 `85.4%`。正反斜坡与 random rough 全等级均为 `100%` 穿越；困难集中在 level 6/9
+  楼梯，level 9 上楼在 `0.5/1.0 m/s` 下穿越率均为 `0%`。
+- rough 楼梯失败 episode 的执行器裁剪明显更多，但仍不能单独归因于执行器：全局最坏 computed/
+  applied torque 分别为 knee `90.7/64.8 N·m`，最长 applied 额定超限为 hip `1.46 s`，保守堵转
+  预算最大消耗 `28.7%`，未见预算耗尽。后续需用相同训练和评估协议对比线性 `DCMotorCfg`。
 - 本次 run 未保存 ShDog 源码 commit，只能确认训练参数、checkpoint 和 TensorBoard 记录；后续训练
   需要补齐 ShDog commit、dirty 状态、完整命令和镜像摘要。
 - Docker 评估首次启动曾在 `omni.platforminfo.plugin` 内偶发 segfault；相同配置随后完成最小启动及
@@ -48,9 +55,11 @@
 
 ## 下一步
 
-当前证据支持接受 baseline 的平地能力，不修改奖励、噪声或 PPO。下一步先完成 rough 冒烟，再使用
-完全相同的 rough 配置分别训练注释保留的线性 `DCMotorCfg` 和 `ShDogDcMotor`，比较 computed/applied
-torque、额定超限、预算消耗和地形通过率。单 seed 只能用于初筛，确认差异后再使用多个 seed 重复。
+当前证据支持接受 baseline 的平地能力，不修改奖励、噪声或 PPO。下一版 rough 训练建议同时取消
+命令范围课程和动态地形等级课程：从第一轮使用完整目标命令范围，并让 4096 个环境固定覆盖有序生成器
+的全部 10 个等级。这样既保证高难度曝光，也为线性 `DCMotorCfg` 与 `ShDogDcMotor` 提供相同的静态
+训练分布，避免课程轨迹放大两次训练的早期随机差异。两者再比较 computed/applied torque、额定超限、
+预算消耗和固定地形穿越率。单 seed 只能用于初筛，确认差异后再使用多个 seed 重复。
 若 Docker 启动崩溃复现，再保留完整 Kit 日志和 crash dump 分析。
 
 ## 检查
@@ -68,6 +77,9 @@ scripts/training.sh eval \
 scripts/training.sh eval \
   artifacts/training/logs/rsl_rl/sh_dog_baseline/<run>/model_9999.pt \
   --task ShDog-Velocity-Flat
+scripts/training.sh eval \
+  artifacts/training/logs/rsl_rl/sh_dog_rough/<run>/model_3000.pt \
+  --task ShDog-Velocity-Rough-Play
 ```
 
 USD 与训练产物不提交 Git。模型约定见 `docs/robot_model.md`，工程边界见 `docs/architecture.md`。

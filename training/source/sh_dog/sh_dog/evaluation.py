@@ -1,4 +1,4 @@
-"""Flat velocity-policy evaluation protocol and metrics."""
+"""Velocity-policy evaluation protocols and metrics."""
 
 import csv
 import hashlib
@@ -15,10 +15,17 @@ from sh_dog.assets import ACTUATOR, REDUCTION
 
 PROTOCOL_VERSION = 1
 COMMAND_AXES = ("lin_vel_x", "lin_vel_y", "ang_vel_z")
+ROUGH_LEVELS = (0, 3, 6, 9)
+ROUGH_FORWARD_COMMANDS = (0.5, 1.0)
+ROUGH_TRAVERSAL_PROGRESS_M = 3.0
 TASK_ALIASES = {
     "ShDog-Velocity-Flat-v0": "ShDog-Velocity-Flat",
     "ShDog-Velocity-Flat-Play-v0": "ShDog-Velocity-Flat-Play",
 }
+
+
+def is_rough_task(task: str) -> bool:
+    return task in ("ShDog-Velocity-Rough", "ShDog-Velocity-Rough-Play")
 
 
 def _resolved_ranges(command_cfg) -> dict[str, list[float]]:
@@ -72,6 +79,48 @@ def _generate_cases(ranges: dict[str, list[float]]) -> list[dict]:
     return cases
 
 
+def _rough_terrain_columns(terrain_generator_cfg) -> dict[str, list[int]]:
+    """Resolve the terrain-generator column layout used by Isaac Lab."""
+    sub_terrains = list(terrain_generator_cfg.sub_terrains.items())
+    total_proportion = sum(float(cfg.proportion) for _, cfg in sub_terrains)
+    columns = {name: [] for name, _ in sub_terrains}
+    cumulative = 0.0
+    boundaries = []
+    for _, cfg in sub_terrains:
+        cumulative += float(cfg.proportion) / total_proportion
+        boundaries.append(cumulative)
+    for column in range(terrain_generator_cfg.num_cols):
+        fraction = column / terrain_generator_cfg.num_cols + 0.001
+        index = next(index for index, boundary in enumerate(boundaries) if fraction < boundary)
+        columns[sub_terrains[index][0]].append(column)
+    return columns
+
+
+def _generate_rough_cases(env_cfg, ranges: dict[str, list[float]]) -> list[dict]:
+    if ranges["lin_vel_x"][1] < max(ROUGH_FORWARD_COMMANDS):
+        raise ValueError("rough evaluation requires lin_vel_x limit of at least 1.0 m/s")
+    terrain_cfg = env_cfg.scene.terrain.terrain_generator
+    columns = _rough_terrain_columns(terrain_cfg)
+    cases = []
+    for terrain_name, terrain_columns in columns.items():
+        difficulty_controlled = terrain_name != "random_rough"
+        for level in ROUGH_LEVELS:
+            for command_vx in ROUGH_FORWARD_COMMANDS:
+                cases.append(
+                    {
+                        "id": f"{terrain_name}_level_{level}_vx_{command_vx:g}",
+                        "command": [command_vx, 0.0, 0.0],
+                        "terrain": {
+                            "name": terrain_name,
+                            "level": level,
+                            "columns": terrain_columns,
+                            "difficulty_controlled": difficulty_controlled,
+                        },
+                    }
+                )
+    return cases
+
+
 def _steps(seconds: float, step_dt: float, name: str) -> int:
     if seconds <= 0.0:
         raise ValueError(f"{name} must be positive")
@@ -103,8 +152,10 @@ def generate_protocol(
         "recovery_steps": _steps(recovery_s, step_dt, "recovery-s"),
     }
     ranges = _resolved_ranges(env_cfg.commands.base_velocity)
+    rough = is_rough_task(task)
     return {
         "version": PROTOCOL_VERSION,
+        "kind": "rough_fixed" if rough else "flat",
         "task": task,
         "step_dt": step_dt,
         "seed": seed,
@@ -112,7 +163,8 @@ def generate_protocol(
         "command_source": "limit_ranges" if hasattr(env_cfg.commands.base_velocity, "limit_ranges") else "ranges",
         "command_ranges": ranges,
         "timing": timing,
-        "cases": _generate_cases(ranges),
+        **({"traversal_progress_m": ROUGH_TRAVERSAL_PROGRESS_M} if rough else {}),
+        "cases": _generate_rough_cases(env_cfg, ranges) if rough else _generate_cases(ranges),
     }
 
 
@@ -133,6 +185,8 @@ def load_protocol(path: Path, task: str, step_dt: float) -> dict:
         raise ValueError("protocol repeats must be a positive integer")
     if not isinstance(protocol.get("seed"), int):
         raise ValueError("protocol seed must be an integer")
+    if protocol.get("kind", "flat") == "rough_fixed" and protocol.get("traversal_progress_m", 0.0) <= 0.0:
+        raise ValueError("rough protocol traversal_progress_m must be positive")
 
     case_ids = set()
     for case in protocol.get("cases", []):
@@ -141,6 +195,14 @@ def load_protocol(path: Path, task: str, step_dt: float) -> dict:
         if not isinstance(case.get("command"), list) or len(case["command"]) != 3:
             raise ValueError(f"protocol command must contain three values: {case}")
         case["command"] = [float(value) for value in case["command"]]
+        if protocol.get("kind", "flat") == "rough_fixed":
+            terrain = case.get("terrain")
+            if not isinstance(terrain, dict):
+                raise ValueError(f"rough protocol case requires terrain metadata: {case}")
+            if not isinstance(terrain.get("level"), int) or terrain["level"] < 0:
+                raise ValueError(f"rough terrain level must be a non-negative integer: {case}")
+            if not isinstance(terrain.get("columns"), list) or not terrain["columns"]:
+                raise ValueError(f"rough terrain columns must be a non-empty list: {case}")
         case_ids.add(case["id"])
     if not case_ids:
         raise ValueError("protocol must contain at least one case")
@@ -148,6 +210,25 @@ def load_protocol(path: Path, task: str, step_dt: float) -> dict:
         if not isinstance(protocol.get("timing", {}).get(key), int) or protocol["timing"][key] <= 0:
             raise ValueError(f"protocol timing.{key} must be a positive integer")
     return protocol
+
+
+def configure_rough_terrain(env, protocol: dict) -> None:
+    """Pin every evaluation environment to its resolved terrain case."""
+    if protocol.get("kind") != "rough_fixed":
+        return
+    base_env = env.unwrapped
+    terrain = base_env.scene.terrain
+    levels = []
+    columns = []
+    for case in protocol["cases"]:
+        terrain_cfg = case["terrain"]
+        for repeat in range(protocol["repeats"]):
+            levels.append(terrain_cfg["level"])
+            columns.append(terrain_cfg["columns"][repeat % len(terrain_cfg["columns"])])
+    terrain.terrain_levels[:] = torch.tensor(levels, device=base_env.device)
+    terrain.terrain_types[:] = torch.tensor(columns, device=base_env.device)
+    base_env.scene.env_origins[:] = terrain.terrain_origins[terrain.terrain_levels, terrain.terrain_types]
+    env.reset()
 
 
 def protocol_phase(step: int, timing: dict) -> str:
@@ -165,6 +246,23 @@ def _value(total: torch.Tensor, count: torch.Tensor, index: int) -> float | None
 
 def _root(value: float | None) -> float | None:
     return math.sqrt(max(value, 0.0)) if value is not None else None
+
+
+def _yaw(quaternion: torch.Tensor) -> torch.Tensor:
+    w, x, y, z = quaternion.unbind(dim=1)
+    return torch.atan2(2.0 * (w * z + x * y), 1.0 - 2.0 * (y.square() + z.square()))
+
+
+def _case_metadata(case: dict, repeat: int) -> dict:
+    terrain = case.get("terrain")
+    if terrain is None:
+        return {}
+    return {
+        "terrain_name": terrain["name"],
+        "terrain_level": terrain["level"],
+        "terrain_column": terrain["columns"][repeat % len(terrain["columns"])],
+        "terrain_difficulty_controlled": terrain["difficulty_controlled"],
+    }
 
 
 def _overload_rate(
@@ -226,6 +324,12 @@ class VelocityEvaluation:
         self.track_sq = torch.zeros_like(self.track_abs)
         self.track_signed = torch.zeros_like(self.track_abs)
         self.recovery_abs = torch.zeros_like(self.track_abs)
+        self.command_started = torch.zeros(self.num_envs, dtype=torch.bool, device=env.device)
+        self.command_start_pos = torch.zeros((self.num_envs, 2), device=env.device)
+        self.command_start_yaw = torch.zeros(self.num_envs, device=env.device)
+        self.command_forward_progress = torch.zeros(self.num_envs, device=env.device)
+        self.command_lateral_drift = torch.zeros(self.num_envs, device=env.device)
+        self.command_yaw_drift = torch.zeros(self.num_envs, device=env.device)
         self.tilt_sq = torch.zeros(self.num_envs, device=env.device)
         self.tilt_max = torch.zeros(self.num_envs, device=env.device)
         self.height_sum = torch.zeros(self.num_envs, device=env.device)
@@ -300,6 +404,22 @@ class VelocityEvaluation:
             self._masked_add(self.track_abs, error.abs(), sample_mask)
             self._masked_add(self.track_sq, error.square(), sample_mask)
             self._masked_add(self.track_signed, error, sample_mask)
+            yaw = _yaw(self.robot.data.root_quat_w)
+            command_start = sample_mask & ~self.command_started
+            self.command_start_pos[command_start] = self.robot.data.root_pos_w[command_start, :2]
+            self.command_start_yaw[command_start] = yaw[command_start]
+            self.command_started |= command_start
+            displacement = self.robot.data.root_pos_w[:, :2] - self.command_start_pos
+            cos_yaw = torch.cos(self.command_start_yaw)
+            sin_yaw = torch.sin(self.command_start_yaw)
+            forward = cos_yaw * displacement[:, 0] + sin_yaw * displacement[:, 1]
+            lateral = -sin_yaw * displacement[:, 0] + cos_yaw * displacement[:, 1]
+            yaw_drift = torch.atan2(
+                torch.sin(yaw - self.command_start_yaw), torch.cos(yaw - self.command_start_yaw)
+            )
+            self.command_forward_progress = torch.where(sample_mask, forward, self.command_forward_progress)
+            self.command_lateral_drift = torch.where(sample_mask, lateral, self.command_lateral_drift)
+            self.command_yaw_drift = torch.where(sample_mask, yaw_drift, self.command_yaw_drift)
         elif phase == "recovery":
             self.recovery_count += sample_mask
             self._masked_add(self.recovery_abs, measured_velocity.abs(), sample_mask)
@@ -421,6 +541,7 @@ class VelocityEvaluation:
         axis_labels = ("vx", "vy", "wz")
         for env_index in range(self.num_envs):
             case = self.protocol["cases"][env_index // self.protocol["repeats"]]
+            repeat = env_index % self.protocol["repeats"]
             target_mae = [_value(self.track_abs[:, i], self.target_count, env_index) for i in range(3)]
             target_mse = [_value(self.track_sq[:, i], self.target_count, env_index) for i in range(3)]
             target_bias = [_value(self.track_signed[:, i], self.target_count, env_index) for i in range(3)]
@@ -430,14 +551,23 @@ class VelocityEvaluation:
             reasons = [name for name, hits in self.termination_hits.items() if bool(hits[env_index].item())]
             row = {
                 "case_id": case["id"],
-                "repeat": env_index % self.protocol["repeats"],
+                "repeat": repeat,
+                **_case_metadata(case, repeat),
                 "command_vx": case["command"][0],
                 "command_vy": case["command"][1],
                 "command_wz": case["command"][2],
                 "duration_s": float(self.steps_alive[env_index].item() * self.protocol["step_dt"]),
                 "success": not reasons and bool(self.active[env_index].item()),
                 "termination_reasons": ",".join(reasons),
+                "command_forward_progress_m": float(self.command_forward_progress[env_index].item()),
+                "command_lateral_drift_abs_m": abs(float(self.command_lateral_drift[env_index].item())),
+                "command_yaw_drift_abs_rad": abs(float(self.command_yaw_drift[env_index].item())),
             }
+            if case.get("terrain") is not None:
+                row["traversal_success"] = (
+                    row["success"]
+                    and row["command_forward_progress_m"] >= self.protocol["traversal_progress_m"]
+                )
             for index, label in enumerate(axis_labels):
                 row[f"target_{label}_mae"] = target_mae[index]
                 row[f"target_{label}_rmse"] = _root(target_mse[index])
@@ -479,11 +609,13 @@ class VelocityEvaluation:
         rows = []
         for env_index in range(self.num_envs):
             case = self.protocol["cases"][env_index // self.protocol["repeats"]]
+            repeat = env_index % self.protocol["repeats"]
             for joint_index, joint_name in enumerate(self.joint_names):
                 rows.append(
                     {
                         "case_id": case["id"],
-                        "repeat": env_index % self.protocol["repeats"],
+                        "repeat": repeat,
+                        **_case_metadata(case, repeat),
                         "joint_name": joint_name,
                         "effort_limit_nm": float(self.effort_limits[joint_index].item()),
                         "computed_torque_rms_nm": _root(
@@ -557,6 +689,9 @@ def summarize(rows: list[dict], cases: list[dict]) -> dict:
         "target_vx_rmse",
         "target_vy_rmse",
         "target_wz_rmse",
+        "command_forward_progress_m",
+        "command_lateral_drift_abs_m",
+        "command_yaw_drift_abs_rad",
         "recovery_vx_abs_mean",
         "recovery_vy_abs_mean",
         "recovery_wz_abs_mean",
@@ -574,6 +709,8 @@ def summarize(rows: list[dict], cases: list[dict]) -> dict:
         "foot_contact_fraction",
     ]
     summary = {"episodes": len(rows), "success_rate": sum(row["success"] for row in rows) / len(rows), "cases": {}}
+    if "traversal_success" in rows[0]:
+        summary["traversal_success_rate"] = sum(row["traversal_success"] for row in rows) / len(rows)
     for case in cases:
         case_rows = [row for row in rows if row["case_id"] == case["id"]]
         termination_counts = {}
@@ -589,13 +726,19 @@ def summarize(rows: list[dict], cases: list[dict]) -> dict:
                     "p95": _percentile(values, 0.95),
                     "max": max(values),
                 }
-        summary["cases"][case["id"]] = {
+        case_summary = {
             "command": case["command"],
             "episodes": len(case_rows),
             "success_rate": sum(row["success"] for row in case_rows) / len(case_rows),
             "termination_counts": termination_counts,
             "metrics": metrics,
         }
+        if case.get("terrain") is not None:
+            case_summary["terrain"] = case["terrain"]
+            case_summary["traversal_success_rate"] = (
+                sum(row["traversal_success"] for row in case_rows) / len(case_rows)
+            )
+        summary["cases"][case["id"]] = case_summary
     return summary
 
 

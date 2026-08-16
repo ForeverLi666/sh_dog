@@ -21,7 +21,12 @@ parser.add_argument(
     "--task",
     type=str,
     default="ShDog-Velocity-Flat-Play",
-    choices=("ShDog-Velocity-Flat-Play", "ShDog-Velocity-Flat"),
+    choices=(
+        "ShDog-Velocity-Flat-Play",
+        "ShDog-Velocity-Flat",
+        "ShDog-Velocity-Rough-Play",
+        "ShDog-Velocity-Rough",
+    ),
     help="Nominal Play task or randomized training task.",
 )
 parser.add_argument(
@@ -29,7 +34,7 @@ parser.add_argument(
 )
 parser.add_argument("--protocol", type=str, default=None, help="Resolved protocol YAML to replay.")
 parser.add_argument("--output-dir", type=str, default=None, help="Evaluation output directory.")
-parser.add_argument("--repeats", type=int, default=None, help="Episodes per command case (default: 8).")
+parser.add_argument("--repeats", type=int, default=None, help="Episodes per case (flat: 8, rough: 4).")
 parser.add_argument("--warmup-s", type=float, default=None, help="Zero-command warmup (default: 2.0).")
 parser.add_argument("--command-s", type=float, default=None, help="Target-command duration (default: 8.0).")
 parser.add_argument("--recovery-s", type=float, default=None, help="Zero-command recovery (default: 2.0).")
@@ -61,7 +66,9 @@ from rsl_rl.runners import OnPolicyRunner
 from sh_dog.evaluation import (
     VelocityEvaluation,
     checkpoint_metadata,
+    configure_rough_terrain,
     generate_protocol,
+    is_rough_task,
     load_protocol,
     write_results,
 )
@@ -78,13 +85,14 @@ from isaaclab_tasks.utils.hydra import hydra_task_config
 def main(env_cfg, agent_cfg: RslRlBaseRunnerCfg) -> None:
     """Run the resolved evaluation protocol."""
     step_dt = float(env_cfg.sim.dt * env_cfg.decimation)
+    default_repeats = 4 if is_rough_task(args_cli.task) else 8
     protocol = (
         load_protocol(Path(args_cli.protocol), args_cli.task, step_dt)
         if args_cli.protocol
         else generate_protocol(
             env_cfg,
             args_cli.task,
-            repeats=args_cli.repeats if args_cli.repeats is not None else 8,
+            repeats=args_cli.repeats if args_cli.repeats is not None else default_repeats,
             seed=args_cli.seed if args_cli.seed is not None else 42,
             warmup_s=args_cli.warmup_s if args_cli.warmup_s is not None else 2.0,
             command_s=args_cli.command_s if args_cli.command_s is not None else 8.0,
@@ -101,7 +109,11 @@ def main(env_cfg, agent_cfg: RslRlBaseRunnerCfg) -> None:
     env_cfg.sim.device = args_cli.device if args_cli.device is not None else env_cfg.sim.device
     env_cfg.episode_length_s = (total_steps + 1) * protocol["step_dt"]
     env_cfg.curriculum.lin_vel_cmd_levels = None
+    if hasattr(env_cfg.curriculum, "terrain_levels"):
+        env_cfg.curriculum.terrain_levels = None
+        env_cfg.scene.terrain.terrain_generator.curriculum = True
     env_cfg.commands.base_velocity.rel_standing_envs = 0.0
+    env_cfg.commands.base_velocity.debug_vis = False
     env_cfg.commands.base_velocity.resampling_time_range = (1.0e9, 1.0e9)
     env_cfg.commands.base_velocity.ranges.lin_vel_x = (0.0, 0.0)
     env_cfg.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.0)
@@ -116,6 +128,7 @@ def main(env_cfg, agent_cfg: RslRlBaseRunnerCfg) -> None:
     )
 
     env = gym.make(args_cli.task, cfg=env_cfg)
+    configure_rough_terrain(env, protocol)
     env = RslRlVecEnvWrapper(env, clip_actions=agent_cfg.clip_actions)
     runner = OnPolicyRunner(env, agent_cfg.to_dict(), log_dir=None, device=agent_cfg.device)
     runner.load(str(checkpoint))

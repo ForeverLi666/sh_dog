@@ -176,8 +176,18 @@ scripts/training.sh eval <checkpoint> --protocol <protocol.yaml>
 
 任务名移除 `-v0` 前生成的评估协议仍可由新任务名原样重放。
 
-当前评估只支持 flat task。rough terrain 建立后再按实际 terrain 类型和难度扩展，不在当前入口中
-预设地形框架。
+rough 评估固定使用有序地形生成器，关闭评估期间的地形与命令课程，覆盖 6 类地形、等级
+`0/3/6/9`、前进速度 `0.5/1.0 m/s`，每组默认重复 4 次：
+
+```bash
+scripts/training.sh eval \
+  artifacts/training/logs/rsl_rl/sh_dog_rough/<run>/model_3000.pt \
+  --task ShDog-Velocity-Rough-Play
+```
+
+结果额外记录地形类型、等级、前向进度、横向漂移和 yaw 漂移；存活且沿初始朝向前进至少 `3 m`
+记为完成穿越。`random_rough` 的官方生成器忽略 difficulty 参数，因此其 level 仅用于覆盖不同地形
+实例，不解释为难度。
 
 Dockerfile、基础镜像摘要和构建末尾的版本断言共同定义训练软件环境。代理地址、镜像仓库认证
 和服务器资源属于运行环境，不写入工程。训练日志、Hydra 输出和 checkpoint 写入
