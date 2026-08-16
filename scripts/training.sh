@@ -8,6 +8,7 @@ readonly compose_file="${repo_root}/docker/compose.train.yaml"
 usage() {
     cat <<'EOF'
 Usage:
+  scripts/training.sh build-usd
   scripts/training.sh train RUN_NAME [options] [-- TRAIN_ARGS...]
   scripts/training.sh eval CHECKPOINT [options] [-- EVAL_ARGS...]
   scripts/training.sh tensorboard [options]
@@ -31,6 +32,7 @@ TensorBoard options:
   --port PORT              Host and container port (default: 6006)
 
 Examples:
+  scripts/training.sh build-usd
   scripts/training.sh train baseline_10k
   scripts/training.sh train smoke --num-envs 64 --max-iterations 2
   scripts/training.sh train resumed -- --resume --load_run RUN
@@ -52,6 +54,30 @@ shell_join() {
     local result
     printf -v result '%q ' "$@"
     printf '%s' "${result% }"
+}
+
+run_build_usd() {
+    if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
+        usage
+        return
+    fi
+    [[ $# -eq 0 ]] || die "build-usd does not accept arguments"
+
+    local repo_uid repo_gid
+    repo_uid="$(stat -c '%u' "${repo_root}")"
+    repo_gid="$(stat -c '%g' "${repo_root}")"
+    local -a build_command=(
+        /workspace/isaaclab/isaaclab.sh -p
+        /workspace/sh_dog/scripts/build_usd.py
+    )
+    local -a owner_command=(
+        chown -R -- "${repo_uid}:${repo_gid}"
+        /workspace/sh_dog/assets/sh_dog/usd
+    )
+
+    echo "usd=${repo_root}/assets/sh_dog/usd"
+    docker compose -f "${compose_file}" run --rm train \
+        "$(shell_join "${build_command[@]}") && $(shell_join "${owner_command[@]}")"
 }
 
 run_train() {
@@ -246,6 +272,10 @@ run_tensorboard() {
 }
 
 case "${1:-}" in
+    build-usd)
+        shift
+        run_build_usd "$@"
+        ;;
     train)
         shift
         run_train "$@"

@@ -68,6 +68,7 @@
 ```bash
 python scripts/normalize_urdf.py
 python scripts/build_usd.py
+scripts/training.sh build-usd
 python training/scripts/list_envs.py
 python training/scripts/stand.py
 python training/scripts/zero_agent.py --task ShDog-Velocity-Flat-Play --num_envs 1

@@ -82,6 +82,8 @@ python scripts/build_usd.py
 python training/scripts/stand.py
 ```
 
+该命令使用本机已配置的 Isaac Lab 环境；仅使用 Docker 时按下一节生成 USD。
+
 序列从 `0.40 m` 释放下蹲姿态，保持 `0.5 s` 后以五次平滑插值在 `0.5 s` 内站起。所有执行器参数
 均为关节侧数值，上层不处理传动比。
 
@@ -104,6 +106,13 @@ docker compose -f docker/compose.train.yaml build \
   --build-arg HTTPS_PROXY \
   --build-arg NO_PROXY \
   train
+```
+
+USD 是本地生成产物，不提交 Git。首次获取工程或模型发生变化后，使用已构建的训练镜像生成 USD；
+命令会在转换完成后恢复宿主目录的文件所有者：
+
+```bash
+scripts/training.sh build-usd
 ```
 
 验证容器内的任务注册：
