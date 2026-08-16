@@ -108,9 +108,10 @@ def main(env_cfg, agent_cfg: RslRlBaseRunnerCfg) -> None:
     env_cfg.scene.num_envs = num_envs
     env_cfg.sim.device = args_cli.device if args_cli.device is not None else env_cfg.sim.device
     env_cfg.episode_length_s = (total_steps + 1) * protocol["step_dt"]
-    env_cfg.curriculum.lin_vel_cmd_levels = None
-    if hasattr(env_cfg.curriculum, "terrain_levels"):
-        env_cfg.curriculum.terrain_levels = None
+    for term_name in ("lin_vel_cmd_levels", "terrain_levels"):
+        if hasattr(env_cfg.curriculum, term_name):
+            setattr(env_cfg.curriculum, term_name, None)
+    if is_rough_task(args_cli.task):
         env_cfg.scene.terrain.terrain_generator.curriculum = True
     env_cfg.commands.base_velocity.rel_standing_envs = 0.0
     env_cfg.commands.base_velocity.debug_vis = False

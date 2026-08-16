@@ -20,11 +20,13 @@
 - 平地任务直接继承 `ManagerBasedRLEnvCfg`；scene、MDP 配置、奖励和仿真参数集中在
   `sh_dog_flat_env_cfg.py`，不继承 rough task 配置；少量自定义计算按职责位于 `mdp/`。
 - 已新增独立 `ShDog-Velocity-Rough` 任务，继承 flat 的命令、动作、奖励、随机化和 termination，
-  仅替换官方 rough terrain generator、增加 terrain curriculum 与 actor/critic 高度扫描。rough PPO
-  参数保持不变，仅使用独立的 `sh_dog_rough` 实验目录。
+  仅替换官方 rough terrain generator、增加 actor/critic 高度扫描。rough PPO 参数保持不变，仅使用
+  独立的 `sh_dog_rough` 实验目录。
 - rough 地形使用官方比例和几何，降低为 stairs `0.05–0.16 m`、boxes `0.05–0.10 m`、random rough
-  `0.02–0.05 m`/`0.01 m` step、slopes `0–0.25`；初始最高 terrain level 为 `2`，课程仍覆盖全部
-  `10` 个等级。
+  `0.02–0.05 m`/`0.01 m` step、slopes `0–0.25`。不再按成功/失败动态升降级；环境启动时在
+  level `0–9` 中分配等级，后续 reset 保持不变，terrain type 仍由有序生成器的 20 列固定覆盖。
+- rough 不启用 `vx/vy` 命令范围课程，从第一轮直接使用完整 `vx ±1.0`、`vy ±0.7`、`wz ±1.5`；
+  velocity command 的 debug visualization 已全局关闭，训练和 Play 均不加载远端箭头 USD。
 - `sh_dog_baseline` 对齐 Unitree 开源 Go2 velocity 当前启用的速度课程、随机化、奖励、termination
   和 PPO；仅 flat terrain，不引入其注释掉的楼梯、height scan 或 observation history。
 - 仓库级可执行工具统一位于 `scripts/`；`sync_training.sh` 可将源码和本地生成 USD 严格镜像到训练
@@ -55,11 +57,10 @@
 
 ## 下一步
 
-当前证据支持接受 baseline 的平地能力，不修改奖励、噪声或 PPO。下一版 rough 训练建议同时取消
-命令范围课程和动态地形等级课程：从第一轮使用完整目标命令范围，并让 4096 个环境固定覆盖有序生成器
-的全部 10 个等级。这样既保证高难度曝光，也为线性 `DCMotorCfg` 与 `ShDogDcMotor` 提供相同的静态
-训练分布，避免课程轨迹放大两次训练的早期随机差异。两者再比较 computed/applied torque、额定超限、
-预算消耗和固定地形穿越率。单 seed 只能用于初筛，确认差异后再使用多个 seed 重复。
+当前证据支持接受 baseline 的平地能力，不修改奖励、噪声或 PPO。下一步先对取消命令范围课程、
+启动时固定覆盖 level `0–9` 的 rough 配置做冒烟，再使用完全相同的配置分别训练线性 `DCMotorCfg`
+和 `ShDogDcMotor`。两者比较 computed/applied torque、额定超限、预算消耗和固定地形穿越率。单 seed
+只能用于初筛，确认差异后再使用多个 seed 重复。
 若 Docker 启动崩溃复现，再保留完整 Kit 日志和 crash dump 分析。
 
 ## 检查

@@ -6,7 +6,6 @@
 """ShDog rough-terrain velocity-tracking task."""
 
 import isaaclab.sim as sim_utils
-from isaaclab.managers import CurriculumTermCfg as CurrTerm
 from isaaclab.managers import ObservationTermCfg as ObsTerm
 from isaaclab.managers import SceneEntityCfg
 from isaaclab.sensors import RayCasterCfg, patterns
@@ -34,7 +33,7 @@ class RoughSceneCfg(SceneCfg):
         prim_path="/World/ground",
         terrain_type="generator",
         terrain_generator=SH_DOG_ROUGH_TERRAINS_CFG,
-        max_init_terrain_level=5,
+        max_init_terrain_level=None,
         collision_group=-1,
         physics_material=sim_utils.RigidBodyMaterialCfg(
             friction_combine_mode="multiply",
@@ -79,7 +78,7 @@ class RoughObservationsCfg(ObservationsCfg):
 
 @configclass
 class RoughCurriculumCfg(CurriculumCfg):
-    terrain_levels = CurrTerm(func=mdp.terrain_levels_vel)
+    lin_vel_cmd_levels = None
 
 
 @configclass
@@ -92,7 +91,11 @@ class ShDogRoughEnvCfg(ShDogFlatEnvCfg):
         super().__post_init__()
         self.sim.physx.gpu_max_rigid_patch_count = 10 * 2**15
         self.scene.height_scanner.update_period = self.decimation * self.sim.dt
-        self.scene.terrain.terrain_generator.curriculum = self.curriculum.terrain_levels is not None
+        self.scene.terrain.terrain_generator.curriculum = True
+        command = self.commands.base_velocity
+        command.ranges.lin_vel_x = command.limit_ranges.lin_vel_x
+        command.ranges.lin_vel_y = command.limit_ranges.lin_vel_y
+        command.ranges.ang_vel_z = command.limit_ranges.ang_vel_z
 
 
 @configclass
@@ -100,19 +103,15 @@ class ShDogRoughEnvCfg_PLAY(ShDogRoughEnvCfg):
     def __post_init__(self) -> None:
         super().__post_init__()
 
-        self.scene.num_envs = 1
-        self.scene.terrain.max_init_terrain_level = 0
-        self.scene.terrain.terrain_generator.curriculum = False
+        self.scene.num_envs = 20
         self.observations.policy.enable_corruption = False
         self.events.physics_material.params["static_friction_range"] = (0.8, 0.8)
         self.events.physics_material.params["dynamic_friction_range"] = (0.6, 0.6)
         self.events.physics_material.params["restitution_range"] = (0.0, 0.0)
         self.events.add_base_mass = None
         self.events.push_robot = None
-        self.curriculum.lin_vel_cmd_levels = None
-        self.curriculum.terrain_levels = None
         self.commands.base_velocity.rel_standing_envs = 0.0
-        self.commands.base_velocity.ranges.lin_vel_x = (0.5, 0.5)
+        self.commands.base_velocity.ranges.lin_vel_x = (1.0, 1.0)
         self.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.0)
         self.commands.base_velocity.ranges.ang_vel_z = (0.0, 0.0)
         self.events.reset_joints.params["velocity_range"] = (0.0, 0.0)

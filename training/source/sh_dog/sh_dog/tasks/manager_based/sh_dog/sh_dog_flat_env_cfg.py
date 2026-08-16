@@ -60,7 +60,7 @@ class CommandsCfg:
         asset_name="robot",
         resampling_time_range=(10.0, 10.0),
         rel_standing_envs=0.1,
-        debug_vis=True,
+        debug_vis=False,
         ranges=mdp.UniformLevelVelocityCommandCfg.Ranges(
             lin_vel_x=(-0.1, 0.1),
             lin_vel_y=(-0.1, 0.1),
