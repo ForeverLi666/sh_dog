@@ -1,7 +1,7 @@
 # 机器人模型约定
 
-本文定义 `sh_dog` 在训练、sim2sim 和 sim2real 中共用的模型语义。原始 CAD 导出文件保存在
-`assets/sh_dog/raw/`，永久保持不变。
+本文定义 `sh_dog` 在训练、sim2sim 和 sim2real 中共用的模型语义。当前原始 CAD 导出文件保存在
+`assets/sh_dog/raw/`，保持原始内容不直接修改；历史版本由 Git 保留。
 
 规范化模型位于 `assets/sh_dog/urdf/sh_dog.urdf`，由 `scripts/normalize_urdf.py` 生成并提交 Git。
 它直接引用 raw STL，不维护 mesh 副本。任何模型变更都先修改 raw 输入或 `model.toml`，再重新生成。
@@ -55,7 +55,7 @@ rr_knee_joint
 
 规范化过程只允许执行确定性的结构修正：
 
-- 将机器人名 `urdf-v2-2` 改为 `sh_dog`；
+- 将当前 CAD 导出的机器人名 `URDF-V4-test1` 改为 `sh_dog`；
 - 将误拼写 `fl_foot_joinf` 改为 `fl_foot_joint`；
 - 将 mesh URI 改为指向唯一 raw STL 的相对路径；
 - 统一 XML 格式，不改变数值精度表达的物理含义。

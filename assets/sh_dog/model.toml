@@ -2,8 +2,8 @@ schema_version = 1
 
 [robot]
 name = "sh_dog"
-source_urdf = "raw/urdf/urdf-v2-2.urdf"
-source_robot_name = "urdf-v2-2"
+source_urdf = "raw/urdf/URDF-V4-test1.urdf"
+source_robot_name = "URDF-V4-test1"
 joint_order = [
     "fl_abad_joint",
     "fl_hip_joint",

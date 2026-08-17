@@ -3,22 +3,22 @@
      Commit Version: 1.6.0-4-g7f85cfe  Build Version: 1.6.7995.38578
      For more information, please see http://wiki.ros.org/sw_urdf_exporter -->
 <robot
-  name="urdf-v2-2">
+  name="URDF-V4-test1">
   <link
     name="base_link">
     <inertial>
       <origin
-        xyz="8.7637E-10 -1.4324E-10 -0.021594"
+        xyz="-0.00049167 6.7769E-09 -0.046567"
         rpy="0 0 0" />
       <mass
-        value="5.7993" />
+        value="6.9493" />
       <inertia
-        ixx="0.010063"
-        ixy="-7.4354E-09"
-        ixz="-6.0677E-12"
-        iyy="0.015103"
-        iyz="4.7666E-11"
-        izz="0.020866" />
+        ixx="0.012221"
+        ixy="-6.134E-09"
+        ixz="-2.1399E-05"
+        iyy="0.019119"
+        iyz="-7.2605E-10"
+        izz="0.025686" />
     </inertial>
     <visual>
       <origin
@@ -26,7 +26,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://urdf-v2-2/meshes/base_link.STL" />
+          filename="package://URDF-V4-test1/meshes/base_link.STL" />
       </geometry>
       <material
         name="">
@@ -40,7 +40,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://urdf-v2-2/meshes/base_link.STL" />
+          filename="package://URDF-V4-test1/meshes/base_link.STL" />
       </geometry>
     </collision>
   </link>
@@ -66,7 +66,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://urdf-v2-2/meshes/fl_abad_link.STL" />
+          filename="package://URDF-V4-test1/meshes/fl_abad_link.STL" />
       </geometry>
       <material
         name="">
@@ -80,7 +80,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://urdf-v2-2/meshes/fl_abad_link.STL" />
+          filename="package://URDF-V4-test1/meshes/fl_abad_link.STL" />
       </geometry>
     </collision>
   </link>
@@ -106,17 +106,17 @@
     name="fl_hip_link">
     <inertial>
       <origin
-        xyz="-0.0029512722087468 0.0553508012448952 -0.0264119852981311"
+        xyz="-0.0029513 0.055351 -0.026412"
         rpy="0 0 0" />
       <mass
-        value="1.25750624804615" />
+        value="1.2575" />
       <inertia
-        ixx="0.00214930949855705"
-        ixy="4.40956202881263E-07"
-        ixz="-0.00012108484885238"
-        iyy="0.00246108793235535"
-        iyz="9.42960291590098E-06"
-        izz="0.000570934024110762" />
+        ixx="0.0021493"
+        ixy="4.4096E-07"
+        ixz="-0.00012108"
+        iyy="0.0024611"
+        iyz="9.4296E-06"
+        izz="0.00057093" />
     </inertial>
     <visual>
       <origin
@@ -124,12 +124,12 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://urdf-v2-2/meshes/fl_hip_link.STL" />
+          filename="package://URDF-V4-test1/meshes/fl_hip_link.STL" />
       </geometry>
       <material
         name="">
         <color
-          rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+          rgba="0.75294 0.75294 0.75294 1" />
       </material>
     </visual>
     <collision>
@@ -138,7 +138,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://urdf-v2-2/meshes/fl_hip_link.STL" />
+          filename="package://URDF-V4-test1/meshes/fl_hip_link.STL" />
       </geometry>
     </collision>
   </link>
@@ -182,7 +182,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://urdf-v2-2/meshes/fl_knee_link.STL" />
+          filename="package://URDF-V4-test1/meshes/fl_knee_link.STL" />
       </geometry>
       <material
         name="">
@@ -196,7 +196,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://urdf-v2-2/meshes/fl_knee_link.STL" />
+          filename="package://URDF-V4-test1/meshes/fl_knee_link.STL" />
       </geometry>
     </collision>
   </link>
@@ -240,7 +240,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://urdf-v2-2/meshes/fl_foot_link.STL" />
+          filename="package://URDF-V4-test1/meshes/fl_foot_link.STL" />
       </geometry>
       <material
         name="">
@@ -254,7 +254,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://urdf-v2-2/meshes/fl_foot_link.STL" />
+          filename="package://URDF-V4-test1/meshes/fl_foot_link.STL" />
       </geometry>
     </collision>
   </link>
@@ -275,17 +275,17 @@
     name="fr_abad_link">
     <inertial>
       <origin
-        xyz="0.0420781692920181 0.02447877018404 -6.34822089895515E-08"
+        xyz="0.042078 0.024479 -6.3482E-08"
         rpy="0 0 0" />
       <mass
-        value="0.928856365893587" />
+        value="0.92886" />
       <inertia
-        ixx="0.000494458255195155"
-        ixy="-5.93109443853958E-06"
-        ixz="-1.28655033307399E-08"
-        iyy="0.00075142781972285"
-        iyz="6.79550427965167E-10"
-        izz="0.000548097550389102" />
+        ixx="0.00049446"
+        ixy="-5.9311E-06"
+        ixz="-1.2866E-08"
+        iyy="0.00075143"
+        iyz="6.7955E-10"
+        izz="0.0005481" />
     </inertial>
     <visual>
       <origin
@@ -293,12 +293,12 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://urdf-v2-2/meshes/fr_abad_link.STL" />
+          filename="package://URDF-V4-test1/meshes/fr_abad_link.STL" />
       </geometry>
       <material
         name="">
         <color
-          rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+          rgba="0.75294 0.75294 0.75294 1" />
       </material>
     </visual>
     <collision>
@@ -307,7 +307,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://urdf-v2-2/meshes/fr_abad_link.STL" />
+          filename="package://URDF-V4-test1/meshes/fr_abad_link.STL" />
       </geometry>
     </collision>
   </link>
@@ -333,17 +333,17 @@
     name="fr_hip_link">
     <inertial>
       <origin
-        xyz="-0.00295127600653761 -0.0553505296691561 -0.0264119215015597"
+        xyz="-0.00295127600653783 -0.0553505296691562 -0.0264119215015597"
         rpy="0 0 0" />
       <mass
-        value="1.25749406115706" />
+        value="1.25749406115707" />
       <inertia
         ixx="0.00214930268727188"
-        ixy="-4.40008235011441E-07"
+        ixy="-4.40008235011207E-07"
         ixz="-0.000121089509845766"
         iyy="0.0024610842094822"
-        iyz="-9.4281865332296E-06"
-        izz="0.00057093730696713" />
+        iyz="-9.42818653322951E-06"
+        izz="0.000570937306967131" />
     </inertial>
     <visual>
       <origin
@@ -351,7 +351,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://urdf-v2-2/meshes/fr_hip_link.STL" />
+          filename="package://URDF-V4-test1/meshes/fr_hip_link.STL" />
       </geometry>
       <material
         name="">
@@ -365,7 +365,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://urdf-v2-2/meshes/fr_hip_link.STL" />
+          filename="package://URDF-V4-test1/meshes/fr_hip_link.STL" />
       </geometry>
     </collision>
   </link>
@@ -391,17 +391,17 @@
     name="fr_knee_link">
     <inertial>
       <origin
-        xyz="0.0157755275951559 3.42715062509602E-08 -0.0946563799349885"
+        xyz="0.0157755275951559 3.42715062162657E-08 -0.0946563799349887"
         rpy="0 0 0" />
       <mass
         value="0.168909137591324" />
       <inertia
         ixx="0.00114264801809999"
-        ixy="2.44618694654258E-10"
-        ixz="0.000182407238717795"
+        ixy="2.4461869443836E-10"
+        ixz="0.000182407238717794"
         iyy="0.00118852208037432"
-        iyz="5.56685644351706E-10"
-        izz="5.64976757542648E-05" />
+        iyz="5.5668564448487E-10"
+        izz="5.64976757542647E-05" />
     </inertial>
     <visual>
       <origin
@@ -409,7 +409,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://urdf-v2-2/meshes/fr_knee_link.STL" />
+          filename="package://URDF-V4-test1/meshes/fr_knee_link.STL" />
       </geometry>
       <material
         name="">
@@ -423,7 +423,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://urdf-v2-2/meshes/fr_knee_link.STL" />
+          filename="package://URDF-V4-test1/meshes/fr_knee_link.STL" />
       </geometry>
     </collision>
   </link>
@@ -449,16 +449,16 @@
     name="fr_foot_link">
     <inertial>
       <origin
-        xyz="-0.00533475077061968 -1.79093260403718E-06 -0.00656074867502132"
+        xyz="-0.00533475077061957 -1.79093260405105E-06 -0.00656074867502143"
         rpy="0 0 0" />
       <mass
         value="0.0389023220231465" />
       <inertia
         ixx="9.54931281293162E-06"
-        ixy="-2.24143885745536E-10"
+        ixy="-2.24143885745597E-10"
         ixz="1.84420622702918E-06"
         iyy="7.87920842448453E-06"
-        iyz="-2.29243200515484E-10"
+        iyz="-2.29243200516718E-10"
         izz="1.00191527344223E-05" />
     </inertial>
     <visual>
@@ -467,7 +467,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://urdf-v2-2/meshes/fr_foot_link.STL" />
+          filename="package://URDF-V4-test1/meshes/fr_foot_link.STL" />
       </geometry>
       <material
         name="">
@@ -481,7 +481,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://urdf-v2-2/meshes/fr_foot_link.STL" />
+          filename="package://URDF-V4-test1/meshes/fr_foot_link.STL" />
       </geometry>
     </collision>
   </link>
@@ -489,7 +489,7 @@
     name="fr_foot_joint"
     type="fixed">
     <origin
-      xyz="0.0219999999999999 0 -0.225"
+      xyz="0.022 0 -0.225"
       rpy="0 0 0" />
     <parent
       link="fr_knee_link" />
@@ -502,17 +502,17 @@
     name="rl_abad_link">
     <inertial>
       <origin
-        xyz="-0.0420781692531116 -0.0244787701623019 -6.34093415066705E-08"
+        xyz="-0.0420781692531116 -0.024478770162302 -6.34093414997317E-08"
         rpy="0 0 0" />
       <mass
         value="0.928856367851297" />
       <inertia
-        ixx="0.000494458255829647"
-        ixy="-5.93109415377524E-06"
-        ixz="1.28644275061935E-08"
-        iyy="0.000751427821800477"
-        iyz="-6.7861349270445E-10"
-        izz="0.000548097549898437" />
+        ixx="0.000494458255829646"
+        ixy="-5.93109415377525E-06"
+        ixz="1.28644275061908E-08"
+        iyy="0.000751427821800478"
+        iyz="-6.78613492704525E-10"
+        izz="0.000548097549898436" />
     </inertial>
     <visual>
       <origin
@@ -520,7 +520,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://urdf-v2-2/meshes/rl_abad_link.STL" />
+          filename="package://URDF-V4-test1/meshes/rl_abad_link.STL" />
       </geometry>
       <material
         name="">
@@ -534,7 +534,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://urdf-v2-2/meshes/rl_abad_link.STL" />
+          filename="package://URDF-V4-test1/meshes/rl_abad_link.STL" />
       </geometry>
     </collision>
   </link>
@@ -560,17 +560,17 @@
     name="rl_hip_link">
     <inertial>
       <origin
-        xyz="-0.00295127219985072 0.0553508012651615 -0.0264119853084"
+        xyz="-0.00295127219985069 0.0553508012651617 -0.0264119853083999"
         rpy="0 0 0" />
       <mass
         value="1.2575062472706" />
       <inertia
         ixx="0.002149309498134"
-        ixy="4.40956484449098E-07"
+        ixy="4.40956484448867E-07"
         ixz="-0.000121084848677264"
-        iyy="0.00246108793182742"
-        iyz="9.42960307045417E-06"
-        izz="0.000570934023383744" />
+        iyy="0.00246108793182743"
+        iyz="9.4296030704541E-06"
+        izz="0.000570934023383745" />
     </inertial>
     <visual>
       <origin
@@ -578,7 +578,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://urdf-v2-2/meshes/rl_hip_link.STL" />
+          filename="package://URDF-V4-test1/meshes/rl_hip_link.STL" />
       </geometry>
       <material
         name="">
@@ -592,7 +592,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://urdf-v2-2/meshes/rl_hip_link.STL" />
+          filename="package://URDF-V4-test1/meshes/rl_hip_link.STL" />
       </geometry>
     </collision>
   </link>
@@ -624,11 +624,11 @@
         value="0.168909137591316" />
       <inertia
         ixx="0.00114264801809902"
-        ixy="2.44618692569378E-10"
+        ixy="2.44618692327364E-10"
         ixz="0.000182407238715603"
         iyy="0.00118852208035357"
-        iyz="5.56685649298466E-10"
-        izz="5.64976757319346E-05" />
+        iyz="5.56685649036167E-10"
+        izz="5.64976757319342E-05" />
     </inertial>
     <visual>
       <origin
@@ -636,7 +636,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://urdf-v2-2/meshes/rl_knee_link.STL" />
+          filename="package://URDF-V4-test1/meshes/rl_knee_link.STL" />
       </geometry>
       <material
         name="">
@@ -650,7 +650,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://urdf-v2-2/meshes/rl_knee_link.STL" />
+          filename="package://URDF-V4-test1/meshes/rl_knee_link.STL" />
       </geometry>
     </collision>
   </link>
@@ -676,16 +676,16 @@
     name="rl_foot_link">
     <inertial>
       <origin
-        xyz="-0.00566277667023725 -2.38009014508211E-06 -0.00693809930669181"
+        xyz="-0.00566277667023726 -2.38009014508211E-06 -0.00693809930669181"
         rpy="0 0 0" />
       <mass
         value="0.0389023220231459" />
       <inertia
         ixx="9.5493128129314E-06"
-        ixy="-2.24143885796023E-10"
+        ixy="-2.24143885796009E-10"
         ixz="1.84420622702916E-06"
         iyy="7.87920842448442E-06"
-        iyz="-2.29243200428639E-10"
+        iyz="-2.29243200429862E-10"
         izz="1.0019152734422E-05" />
     </inertial>
     <visual>
@@ -694,7 +694,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://urdf-v2-2/meshes/rl_foot_link.STL" />
+          filename="package://URDF-V4-test1/meshes/rl_foot_link.STL" />
       </geometry>
       <material
         name="">
@@ -708,7 +708,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://urdf-v2-2/meshes/rl_foot_link.STL" />
+          filename="package://URDF-V4-test1/meshes/rl_foot_link.STL" />
       </geometry>
     </collision>
   </link>
@@ -735,10 +735,10 @@
         value="0.928856366079835" />
       <inertia
         ixx="0.000494458255385036"
-        ixy="5.93109447406545E-06"
-        ixz="-1.28654564117821E-08"
-        iyy="0.000751427819863048"
-        iyz="-6.79641783779976E-10"
+        ixy="5.93109447406546E-06"
+        ixz="-1.2865456411775E-08"
+        iyy="0.000751427819863049"
+        iyz="-6.79641783786189E-10"
         izz="0.000548097550476743" />
     </inertial>
     <visual>
@@ -747,7 +747,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://urdf-v2-2/meshes/rr_abad_link.STL" />
+          filename="package://URDF-V4-test1/meshes/rr_abad_link.STL" />
       </geometry>
       <material
         name="">
@@ -761,7 +761,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://urdf-v2-2/meshes/rr_abad_link.STL" />
+          filename="package://URDF-V4-test1/meshes/rr_abad_link.STL" />
       </geometry>
     </collision>
   </link>
@@ -787,16 +787,16 @@
     name="rr_hip_link">
     <inertial>
       <origin
-        xyz="-0.00295127679931298 -0.055350529729996 -0.026411921870828"
+        xyz="-0.00295127679931295 -0.055350529729996 -0.026411921870828"
         rpy="0 0 0" />
       <mass
         value="1.25749406287706" />
       <inertia
         ixx="0.00214930268681864"
-        ixy="-4.39987018540257E-07"
+        ixy="-4.39987018540022E-07"
         ixz="-0.000121089510032065"
         iyy="0.00246108420957282"
-        iyz="-9.42817590134894E-06"
+        iyz="-9.42817590134888E-06"
         izz="0.000570937307193574" />
     </inertial>
     <visual>
@@ -805,7 +805,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://urdf-v2-2/meshes/rr_hip_link.STL" />
+          filename="package://URDF-V4-test1/meshes/rr_hip_link.STL" />
       </geometry>
       <material
         name="">
@@ -819,7 +819,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://urdf-v2-2/meshes/rr_hip_link.STL" />
+          filename="package://URDF-V4-test1/meshes/rr_hip_link.STL" />
       </geometry>
     </collision>
   </link>
@@ -845,16 +845,16 @@
     name="rr_knee_link">
     <inertial>
       <origin
-        xyz="0.0157755275951563 3.42715060636101E-08 -0.0946563799349878"
+        xyz="0.0157755275951563 3.4271506070549E-08 -0.0946563799349878"
         rpy="0 0 0" />
       <mass
         value="0.168909137591319" />
       <inertia
         ixx="0.00114264801809904"
-        ixy="2.44618693893183E-10"
+        ixy="2.44618693892352E-10"
         ixz="0.000182407238718271"
-        iyy="0.00118852208034888"
-        iyz="5.56685644130333E-10"
+        iyy="0.00118852208034887"
+        iyz="5.56685644110282E-10"
         izz="5.64976757281815E-05" />
     </inertial>
     <visual>
@@ -863,7 +863,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://urdf-v2-2/meshes/rr_knee_link.STL" />
+          filename="package://URDF-V4-test1/meshes/rr_knee_link.STL" />
       </geometry>
       <material
         name="">
@@ -877,7 +877,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://urdf-v2-2/meshes/rr_knee_link.STL" />
+          filename="package://URDF-V4-test1/meshes/rr_knee_link.STL" />
       </geometry>
     </collision>
   </link>
@@ -903,16 +903,16 @@
     name="rr_foot_link">
     <inertial>
       <origin
-        xyz="-0.00566277667054906 -1.79093222103105E-06 -0.00693809930624234"
+        xyz="-0.00566277667054906 -1.79093222103799E-06 -0.0069380993062424"
         rpy="0 0 0" />
       <mass
         value="0.0389023220259562" />
       <inertia
         ixx="9.54931281301923E-06"
-        ixy="-2.2414373730696E-10"
+        ixy="-2.2414373730689E-10"
         ixz="1.8442062269997E-06"
         iyy="7.87920842474891E-06"
-        iyz="-2.29243183987163E-10"
+        iyz="-2.29243183988196E-10"
         izz="1.00191527347673E-05" />
     </inertial>
     <visual>
@@ -921,7 +921,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://urdf-v2-2/meshes/rr_foot_link.STL" />
+          filename="package://URDF-V4-test1/meshes/rr_foot_link.STL" />
       </geometry>
       <material
         name="">
@@ -935,7 +935,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://urdf-v2-2/meshes/rr_foot_link.STL" />
+          filename="package://URDF-V4-test1/meshes/rr_foot_link.STL" />
       </geometry>
     </collision>
   </link>

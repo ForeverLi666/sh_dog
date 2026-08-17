@@ -3,6 +3,8 @@
 ## 当前状态
 
 - raw、规范化 URDF、primitive collision 和本地生成 USD 流程已完成。
+- 当前 raw 模型已更新为 `URDF-V4-test1`：关节拓扑和零位保持不变，CAD 总质量由约 `15.376 kg`
+  更新为约 `16.526 kg`，并使用新版 visual meshes；规范化 URDF 和 USD 已重新生成。
 - `model.toml` 是机器人名称、关节顺序、默认站姿、RS06 规格和 collision 的事实来源。
 - 上层统一使用关节侧位置、速度、力矩和惯量；MCU 已处理协议与传动换算。
 - `SH_DOG_CFG` 使用柔顺运动 PD：abad `25/1`、hip `30/1.2`、knee `40/2`。
