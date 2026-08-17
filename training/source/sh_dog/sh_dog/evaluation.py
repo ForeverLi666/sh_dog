@@ -28,14 +28,16 @@ def is_rough_task(task: str) -> bool:
     return task in ("ShDog-Velocity-Rough", "ShDog-Velocity-Rough-Play")
 
 
-def _resolved_ranges(command_cfg) -> dict[str, list[float]]:
+def _resolved_ranges(command_cfg, *, require_zero: bool) -> dict[str, list[float]]:
     ranges_cfg = getattr(command_cfg, "limit_ranges", None) or command_cfg.ranges
     ranges = {}
     for axis in COMMAND_AXES:
         lower, upper = getattr(ranges_cfg, axis)
         lower = float(lower)
         upper = float(upper)
-        if lower > 0.0 or upper < 0.0 or lower > upper:
+        if lower > upper:
+            raise ValueError(f"invalid command range: {axis}=({lower}, {upper})")
+        if require_zero and (lower > 0.0 or upper < 0.0):
             raise ValueError(f"command range must contain zero: {axis}=({lower}, {upper})")
         ranges[axis] = [lower, upper]
     return ranges
@@ -151,8 +153,8 @@ def generate_protocol(
         "command_steps": _steps(command_s, step_dt, "command-s"),
         "recovery_steps": _steps(recovery_s, step_dt, "recovery-s"),
     }
-    ranges = _resolved_ranges(env_cfg.commands.base_velocity)
     rough = is_rough_task(task)
+    ranges = _resolved_ranges(env_cfg.commands.base_velocity, require_zero=not rough)
     return {
         "version": PROTOCOL_VERSION,
         "kind": "rough_fixed" if rough else "flat",

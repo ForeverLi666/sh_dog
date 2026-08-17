@@ -60,9 +60,10 @@ python training/scripts/rsl_rl/train.py \
   --task ShDog-Velocity-Flat --headless --num_envs 64 --max_iterations 2
 ```
 
-rough 任务使用降低难度的官方 terrain generator，4096 个环境启动时固定覆盖 level `0–9`，并向
-actor/critic 提供 `1.6 m × 1.0 m`、`0.1 m` 分辨率的高度扫描。rough 从训练开始直接使用完整命令
-范围；训练和 Play 均关闭命令箭头，避免加载远端 USD。使用独立实验目录运行冒烟：
+rough 任务使用降低难度的官方 terrain generator 和地形课程，环境初始覆盖 level `0–5`，再按前进
+距离动态升降级；actor/critic 使用 `1.6 m × 1.0 m`、`0.1 m` 分辨率的高度扫描。当前验证阶段仅
+采样 `vx=0.5–1.0 m/s`，关闭横移、转向和 standing command，线速度跟踪 `std=0.4`。训练和 Play
+均关闭命令箭头，避免加载远端 USD。使用独立实验目录运行冒烟：
 
 ```bash
 scripts/training.sh train rough_smoke \

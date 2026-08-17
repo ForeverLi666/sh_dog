@@ -6,13 +6,13 @@
 """ShDog rough-terrain velocity-tracking task."""
 
 import isaaclab.sim as sim_utils
+from isaaclab.managers import CurriculumTermCfg as CurrTerm
 from isaaclab.managers import ObservationTermCfg as ObsTerm
 from isaaclab.managers import SceneEntityCfg
 from isaaclab.sensors import RayCasterCfg, patterns
 from isaaclab.terrains import TerrainImporterCfg
 from isaaclab.terrains.config.rough import ROUGH_TERRAINS_CFG
 from isaaclab.utils import configclass
-from isaaclab.utils.noise import AdditiveUniformNoiseCfg as Unoise
 
 from . import mdp
 from .sh_dog_flat_env_cfg import CurriculumCfg, ObservationsCfg, SceneCfg, ShDogFlatEnvCfg
@@ -33,7 +33,7 @@ class RoughSceneCfg(SceneCfg):
         prim_path="/World/ground",
         terrain_type="generator",
         terrain_generator=SH_DOG_ROUGH_TERRAINS_CFG,
-        max_init_terrain_level=None,
+        max_init_terrain_level=5,
         collision_group=-1,
         physics_material=sim_utils.RigidBodyMaterialCfg(
             friction_combine_mode="multiply",
@@ -60,7 +60,6 @@ class RoughObservationsCfg(ObservationsCfg):
         height_scan = ObsTerm(
             func=mdp.height_scan,
             params={"sensor_cfg": SceneEntityCfg("height_scanner")},
-            noise=Unoise(n_min=-0.1, n_max=0.1),
             clip=(-1.0, 1.0),
         )
 
@@ -79,6 +78,7 @@ class RoughObservationsCfg(ObservationsCfg):
 @configclass
 class RoughCurriculumCfg(CurriculumCfg):
     lin_vel_cmd_levels = None
+    terrain_levels = CurrTerm(func=mdp.terrain_levels_vel)
 
 
 @configclass
@@ -93,9 +93,12 @@ class ShDogRoughEnvCfg(ShDogFlatEnvCfg):
         self.scene.height_scanner.update_period = self.decimation * self.sim.dt
         self.scene.terrain.terrain_generator.curriculum = True
         command = self.commands.base_velocity
-        command.ranges.lin_vel_x = command.limit_ranges.lin_vel_x
-        command.ranges.lin_vel_y = command.limit_ranges.lin_vel_y
-        command.ranges.ang_vel_z = command.limit_ranges.ang_vel_z
+        command.rel_standing_envs = 0.0
+        command.heading_command = False
+        command.ranges.lin_vel_x = command.limit_ranges.lin_vel_x = (0.5, 1.0)
+        command.ranges.lin_vel_y = command.limit_ranges.lin_vel_y = (0.0, 0.0)
+        command.ranges.ang_vel_z = command.limit_ranges.ang_vel_z = (0.0, 0.0)
+        self.rewards.track_lin_vel_xy.params["std"] = 0.4
 
 
 @configclass
@@ -104,6 +107,8 @@ class ShDogRoughEnvCfg_PLAY(ShDogRoughEnvCfg):
         super().__post_init__()
 
         self.scene.num_envs = 20
+        self.scene.terrain.max_init_terrain_level = None
+        self.curriculum.terrain_levels = None
         self.observations.policy.enable_corruption = False
         self.events.physics_material.params["static_friction_range"] = (0.8, 0.8)
         self.events.physics_material.params["dynamic_friction_range"] = (0.6, 0.6)

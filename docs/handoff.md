@@ -25,10 +25,12 @@
   仅替换官方 rough terrain generator、增加 actor/critic 高度扫描。rough PPO 参数保持不变，仅使用
   独立的 `sh_dog_rough` 实验目录。
 - rough 地形使用官方比例和几何，降低为 stairs `0.05–0.16 m`、boxes `0.05–0.10 m`、random rough
-  `0.02–0.05 m`/`0.01 m` step、slopes `0–0.25`。不再按成功/失败动态升降级；环境启动时在
-  level `0–9` 中分配等级，后续 reset 保持不变，terrain type 仍由有序生成器的 20 列固定覆盖。
-- rough 不启用 `vx/vy` 命令范围课程，从第一轮直接使用完整 `vx ±1.0`、`vy ±0.7`、`wz ±1.5`；
-  velocity command 的 debug visualization 已全局关闭，训练和 Play 均不加载远端箭头 USD。
+  `0.02–0.05 m`/`0.01 m` step、slopes `0–0.25`。启用官方基于前进距离的地形课程，初始覆盖
+  level `0–5`，成功后动态升到更高等级。
+- rough 当前用于前进上楼验证：仅采样 `vx=0.5–1.0 m/s`，`vy/wz=0`，关闭 standing command 和
+  heading command，并将线速度跟踪 `std` 收紧为 `0.4`；actor/critic 当前均使用干净高度扫描，命令
+  范围课程保持关闭。velocity command 的 debug visualization 已全局关闭，训练和 Play 均不加载
+  远端箭头 USD。
 - `sh_dog_baseline` 对齐 Unitree 开源 Go2 velocity 当前启用的速度课程、随机化、奖励、termination
   和 PPO；仅 flat terrain，不引入其注释掉的楼梯、height scan 或 observation history。
 - 仓库级可执行工具统一位于 `scripts/`；`sync_training.sh` 可将源码和本地生成 USD 严格镜像到训练
@@ -52,6 +54,16 @@
 - rough 楼梯失败 episode 的执行器裁剪明显更多，但仍不能单独归因于执行器：全局最坏 computed/
   applied torque 分别为 knee `90.7/64.8 N·m`，最长 applied 额定超限为 hip `1.46 s`，保守堵转
   预算最大消耗 `28.7%`，未见预算耗尽。后续需用相同训练和评估协议对比线性 `DCMotorCfg`。
+- `2026-08-17_11-16-50_forward_curriculum_3k/model_2999.pt` 使用干净高度图教师、前进命令和动态
+  地形课程；课程平均等级在约 1000 iterations 达到 `6.26`，末段稳定约 `6.0`。固定地形评估为
+  `191/192` 存活且完成穿越，level `0/3/6/9` 的上下楼梯均为 `100%`，唯一失败为 level 9 boxes 的
+  一次 bad orientation。
+- 该教师相对旧 10k rough 策略将穿越率从 `83.3%` 提高到 `99.5%`，但平均横向漂移从 `0.184 m`
+  增至 `0.302 m`，平均 yaw 漂移从 `0.076 rad` 增至 `0.094 rad`。level 9 上楼 `1.0 m/s` 的平均
+  横向/yaw 漂移为 `1.16 m/0.174 rad`，后续需区分航向闭环与崎岖地形侧向落脚偏差。
+- 教师固定评估中 `ShDogDcMotor` 最长连续裁剪为 `0.42 s`，最大 applied 额定超限连续时间为
+  `0.14 s`，最坏保守堵转预算消耗为 `5.17%`；level 9 上楼存在明显降额但仍全部通过，未见持续
+  峰值力矩或预算耗尽主导行为。
 - 本次 run 未保存 ShDog 源码 commit，只能确认训练参数、checkpoint 和 TensorBoard 记录；后续训练
   需要补齐 ShDog commit、dirty 状态、完整命令和镜像摘要。
 - Docker 评估首次启动曾在 `omni.platforminfo.plugin` 内偶发 segfault；相同配置随后完成最小启动及
@@ -59,10 +71,10 @@
 
 ## 下一步
 
-当前证据支持接受 baseline 的平地能力，不修改奖励、噪声或 PPO。下一步先对取消命令范围课程、
-启动时固定覆盖 level `0–9` 的 rough 配置做冒烟，再使用完全相同的配置分别训练线性 `DCMotorCfg`
-和 `ShDogDcMotor`。两者比较 computed/applied torque、额定超限、预算消耗和固定地形穿越率。单 seed
-只能用于初筛，确认差异后再使用多个 seed 重复。
+干净高度图教师的前进上楼能力已经成立，不需要继续长训。下一步保留该教师作为仿真上限，建立 actor
+不含高度图、critic 保留干净高度图的 recurrent student，先用 GRU + PPO 做同样的 3000 iterations
+前进任务；若学习明显不足，再引入教师蒸馏。heading、横移和转向暂不同时加入，先区分缺少前视地形
+与航向漂移的影响。正式启动下一轮前补齐训练服务器上的 ShDog 源码状态记录。
 若 Docker 启动崩溃复现，再保留完整 Kit 日志和 crash dump 分析。
 
 ## 检查
