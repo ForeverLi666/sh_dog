@@ -56,14 +56,6 @@ class RoughSceneCfg(SceneCfg):
 @configclass
 class RoughObservationsCfg(ObservationsCfg):
     @configclass
-    class PolicyCfg(ObservationsCfg.PolicyCfg):
-        height_scan = ObsTerm(
-            func=mdp.height_scan,
-            params={"sensor_cfg": SceneEntityCfg("height_scanner")},
-            clip=(-1.0, 1.0),
-        )
-
-    @configclass
     class CriticCfg(ObservationsCfg.CriticCfg):
         height_scan = ObsTerm(
             func=mdp.height_scan,
@@ -71,7 +63,6 @@ class RoughObservationsCfg(ObservationsCfg):
             clip=(-1.0, 1.0),
         )
 
-    policy: PolicyCfg = PolicyCfg()
     critic: CriticCfg = CriticCfg()
 
 
@@ -99,6 +90,7 @@ class ShDogRoughEnvCfg(ShDogFlatEnvCfg):
         command.ranges.lin_vel_y = command.limit_ranges.lin_vel_y = (0.0, 0.0)
         command.ranges.ang_vel_z = command.limit_ranges.ang_vel_z = (0.0, 0.0)
         self.rewards.track_lin_vel_xy.params["std"] = 0.4
+        self.events.push_robot = None
 
 
 @configclass

@@ -22,15 +22,17 @@
 - 平地任务直接继承 `ManagerBasedRLEnvCfg`；scene、MDP 配置、奖励和仿真参数集中在
   `sh_dog_flat_env_cfg.py`，不继承 rough task 配置；少量自定义计算按职责位于 `mdp/`。
 - 已新增独立 `ShDog-Velocity-Rough` 任务，继承 flat 的命令、动作、奖励、随机化和 termination，
-  仅替换官方 rough terrain generator、增加 actor/critic 高度扫描。rough PPO 参数保持不变，仅使用
-  独立的 `sh_dog_rough` 实验目录。
+  仅替换官方 rough terrain generator，并为 critic 增加高度扫描。rough 使用独立的 `sh_dog_rough`
+  实验目录和 recurrent PPO policy，flat 仍保持原单帧 MLP。
 - rough 地形使用官方比例和几何，降低为 stairs `0.05–0.16 m`、boxes `0.05–0.10 m`、random rough
   `0.02–0.05 m`/`0.01 m` step、slopes `0–0.25`。启用官方基于前进距离的地形课程，初始覆盖
   level `0–5`，成功后动态升到更高等级。
-- rough 当前用于前进上楼验证：仅采样 `vx=0.5–1.0 m/s`，`vy/wz=0`，关闭 standing command 和
-  heading command，并将线速度跟踪 `std` 收紧为 `0.4`；actor/critic 当前均使用干净高度扫描，命令
-  范围课程保持关闭。velocity command 的 debug visualization 已全局关闭，训练和 Play 均不加载
-  远端箭头 USD。
+- rough 当前用于 recurrent student 前进上楼验证：仅采样 `vx=0.5–1.0 m/s`，`vy/wz=0`，关闭
+  standing command、heading command 和外部 push，并将线速度跟踪 `std` 收紧为 `0.4`。actor 使用
+  45D 本体观测和单层 128D GRU，不含高度图；recurrent critic 保留干净高度扫描。命令范围课程保持
+  关闭，velocity command 的 debug visualization 已全局关闭，训练和 Play 均不加载远端箭头 USD。
+- recurrent student 已通过 `64 environments × 2 iterations` Docker 冒烟，确认 actor/critic GRU、
+  非对称 observation、hidden state 训练和源码状态记录正常；Event Manager 中无 interval push。
 - `sh_dog_baseline` 对齐 Unitree 开源 Go2 velocity 当前启用的速度课程、随机化、奖励、termination
   和 PPO；仅 flat terrain，不引入其注释掉的楼梯、height scan 或 observation history。
 - 仓库级可执行工具统一位于 `scripts/`；`sync_training.sh` 可将源码和本地生成 USD 严格镜像到训练
@@ -71,10 +73,11 @@
 
 ## 下一步
 
-干净高度图教师的前进上楼能力已经成立，不需要继续长训。下一步保留该教师作为仿真上限，建立 actor
-不含高度图、critic 保留干净高度图的 recurrent student，先用 GRU + PPO 做同样的 3000 iterations
-前进任务；若学习明显不足，再引入教师蒸馏。heading、横移和转向暂不同时加入，先区分缺少前视地形
-与航向漂移的影响。正式启动下一轮前补齐训练服务器上的 ShDog 源码状态记录。
+干净高度图教师暂不重训，保留为仿真上限。下一步对当前 recurrent student 做 3000 iterations 前进
+训练，并使用固定 rough 协议比较教师与学生的穿越率、漂移和执行器用量；若学习明显不足，再引入教师
+蒸馏。heading、横移、转向和外部 push 暂不同时加入，先区分缺少前视地形与航向漂移的影响。正式
+启动训练前同步源码和新版 USD；训练 run 应保存当前 ShDog commit、dirty 状态和完整命令。第一轮不
+因结果不理想同时调整 GRU 维度、奖励或课程，先判断 128D GRU 是否已经形成有效盲走反射。
 若 Docker 启动崩溃复现，再保留完整 Kit 日志和 crash dump 分析。
 
 ## 检查
@@ -88,14 +91,20 @@ python training/scripts/stand.py
 python training/scripts/zero_agent.py --task ShDog-Velocity-Flat-Play --num_envs 1
 scripts/training.sh train rough_smoke \
   --task ShDog-Velocity-Rough --num-envs 64 --max-iterations 2
+scripts/training.sh train recurrent_student_3k \
+  --task ShDog-Velocity-Rough --num-envs 4096 --max-iterations 3000 --shm-size 8gb
 scripts/training.sh eval \
   artifacts/training/logs/rsl_rl/sh_dog_baseline/<run>/model_9999.pt
 scripts/training.sh eval \
   artifacts/training/logs/rsl_rl/sh_dog_baseline/<run>/model_9999.pt \
   --task ShDog-Velocity-Flat
 scripts/training.sh eval \
-  artifacts/training/logs/rsl_rl/sh_dog_rough/<run>/model_3000.pt \
-  --task ShDog-Velocity-Rough-Play
+  artifacts/training/logs/rsl_rl/sh_dog_rough/<run>/model_2999.pt \
+  --task ShDog-Velocity-Rough-Play --shm-size 8gb
 ```
+
+recurrent student 重点比较固定地形总穿越率、level `0/3/6/9` 上下楼成功率、横向/yaw 漂移和逐关节
+computed/applied torque。当前高度图教师的 `99.5%` 穿越率是仿真上限参考，不要求第一版盲走学生
+立即追平；首先确认其明显优于停在台阶前或首次接触后无法恢复的行为。
 
 USD 与训练产物不提交 Git。模型约定见 `docs/robot_model.md`，工程边界见 `docs/architecture.md`。

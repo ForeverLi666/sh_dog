@@ -7,7 +7,12 @@
 
 from isaaclab.utils import configclass
 
-from isaaclab_rl.rsl_rl import RslRlOnPolicyRunnerCfg, RslRlPpoActorCriticCfg, RslRlPpoAlgorithmCfg
+from isaaclab_rl.rsl_rl import (
+    RslRlOnPolicyRunnerCfg,
+    RslRlPpoActorCriticCfg,
+    RslRlPpoActorCriticRecurrentCfg,
+    RslRlPpoAlgorithmCfg,
+)
 
 
 @configclass
@@ -44,3 +49,14 @@ class ShDogFlatPPORunnerCfg(RslRlOnPolicyRunnerCfg):
 @configclass
 class ShDogRoughPPORunnerCfg(ShDogFlatPPORunnerCfg):
     experiment_name = "sh_dog_rough"
+    policy = RslRlPpoActorCriticRecurrentCfg(
+        init_noise_std=1.0,
+        actor_obs_normalization=False,
+        critic_obs_normalization=False,
+        actor_hidden_dims=[512, 256, 128],
+        critic_hidden_dims=[512, 256, 128],
+        activation="elu",
+        rnn_type="gru",
+        rnn_hidden_dim=128,
+        rnn_num_layers=1,
+    )
