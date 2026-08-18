@@ -37,7 +37,7 @@ required_usd=(
 
 for relative_path in "${required_usd[@]}"; do
     if [[ ! -f "${repo_root}/${relative_path}" ]]; then
-        echo "generated USD is missing; run python scripts/build_usd.py: ${relative_path}" >&2
+        echo "generated USD is missing; run scripts/training.sh build-usd: ${relative_path}" >&2
         exit 1
     fi
 done
