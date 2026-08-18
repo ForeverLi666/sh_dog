@@ -60,12 +60,12 @@ python training/scripts/rsl_rl/train.py \
   --task ShDog-Velocity-Flat --headless --num_envs 64 --max_iterations 2
 ```
 
-rough 任务使用降低难度的官方 terrain generator 和地形课程，环境初始覆盖 level `0–5`，再按前进
-距离动态升降级；actor 使用 45D 本体观测和单层 128D GRU，critic 保留 `1.6 m × 1.0 m`、`0.1 m`
-分辨率的干净高度扫描。当前 heading fine-tune 保持 `vx=0.5–1.0 m/s`、`vy=0`，启用官方航向
-P 控制器，目标航向覆盖 `[-π, π]`，动态 `wz` 限幅为 `±0.5 rad/s`；关闭 standing command
-和外部 push，线速度及 yaw rate 跟踪 `std` 均为 `0.4`。训练和 Play 均关闭命令箭头，避免加载
-远端 USD。使用独立实验目录运行冒烟：
+rough 任务使用降低难度的官方 terrain generator，环境初始覆盖 level `0–3`，再按 episode 存活和
+线速度/yaw 跟踪动态升降级；该判据不依赖终点位移，适用于全向和弧线运动。actor 使用 45D 本体观测
+和单层 128D GRU，critic 保留 `1.6 m × 1.0 m`、`0.1 m` 分辨率的干净高度扫描。当前命令范围为
+`vx∈[-1,1] m/s`、`vy∈[-0.5,0.5] m/s`、`wz∈[-1,1] rad/s`；50% 环境使用官方航向 P
+控制器，其余直接采样 `wz`。关闭 standing command 和外部 push，线速度及 yaw rate 跟踪 `std`
+均为 `0.4`。训练和 Play 均关闭命令箭头，避免加载远端 USD。使用独立实验目录运行冒烟：
 
 ```bash
 scripts/training.sh train rough_smoke \

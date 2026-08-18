@@ -35,7 +35,7 @@ class RoughSceneCfg(SceneCfg):
         prim_path="/World/ground",
         terrain_type="generator",
         terrain_generator=SH_DOG_ROUGH_TERRAINS_CFG,
-        max_init_terrain_level=5,
+        max_init_terrain_level=3,
         collision_group=-1,
         physics_material=sim_utils.RigidBodyMaterialCfg(
             friction_combine_mode="multiply",
@@ -71,7 +71,15 @@ class RoughObservationsCfg(ObservationsCfg):
 @configclass
 class RoughCurriculumCfg(CurriculumCfg):
     lin_vel_cmd_levels = None
-    terrain_levels = CurrTerm(func=mdp.terrain_levels_vel)
+    terrain_levels = CurrTerm(
+        func=mdp.terrain_levels_omnidirectional,
+        params={
+            "move_up_lin_threshold": 0.75,
+            "move_up_yaw_threshold": 0.65,
+            "move_down_lin_threshold": 0.40,
+            "move_down_yaw_threshold": 0.30,
+        },
+    )
 
 
 @configclass
@@ -89,10 +97,10 @@ class ShDogRoughEnvCfg(ShDogFlatEnvCfg):
         command.rel_standing_envs = 0.0
         command.heading_command = True
         command.heading_control_stiffness = 1.0
-        command.rel_heading_envs = 1.0
-        command.ranges.lin_vel_x = command.limit_ranges.lin_vel_x = (0.5, 1.0)
-        command.ranges.lin_vel_y = command.limit_ranges.lin_vel_y = (0.0, 0.0)
-        command.ranges.ang_vel_z = command.limit_ranges.ang_vel_z = (-0.5, 0.5)
+        command.rel_heading_envs = 0.5
+        command.ranges.lin_vel_x = command.limit_ranges.lin_vel_x = (-1.0, 1.0)
+        command.ranges.lin_vel_y = command.limit_ranges.lin_vel_y = (-0.5, 0.5)
+        command.ranges.ang_vel_z = command.limit_ranges.ang_vel_z = (-1.0, 1.0)
         command.ranges.heading = command.limit_ranges.heading = (-math.pi, math.pi)
         self.rewards.track_lin_vel_xy.params["std"] = 0.4
         self.rewards.track_ang_vel_z.params["std"] = 0.4
@@ -116,6 +124,7 @@ class ShDogRoughEnvCfg_PLAY(ShDogRoughEnvCfg):
         self.commands.base_velocity.rel_standing_envs = 0.0
         self.commands.base_velocity.ranges.lin_vel_x = (1.0, 1.0)
         self.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.0)
+        self.commands.base_velocity.ranges.heading = (0.0, 0.0)
         self.events.reset_joints.params["velocity_range"] = (0.0, 0.0)
         self.events.reset_base.params["pose_range"] = {
             "x": (0.0, 0.0),

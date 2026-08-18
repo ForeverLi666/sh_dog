@@ -25,13 +25,13 @@
   仅替换官方 rough terrain generator，并为 critic 增加高度扫描。rough 使用独立的 `sh_dog_rough`
   实验目录和 recurrent PPO policy，flat 仍保持原单帧 MLP。
 - rough 地形使用官方比例和几何，降低为 stairs `0.05–0.16 m`、boxes `0.05–0.10 m`、random rough
-  `0.02–0.05 m`/`0.01 m` step、slopes `0–0.25`。启用官方基于前进距离的地形课程，初始覆盖
-  level `0–5`，成功后动态升到更高等级。
-- rough 当前从 10k recurrent student 做 heading fine-tune：保持 `vx=0.5–1.0 m/s`、`vy=0`，启用
-  官方航向 P 控制器，目标航向覆盖 `[-π, π]`，动态 `wz` 限幅为 `±0.5 rad/s`；关闭 standing
-  command 和外部 push，线速度及 yaw rate 跟踪 `std` 均为 `0.4`。actor 仍使用 45D 本体观测和
-  单层 128D GRU，不含高度图；recurrent critic 保留干净高度扫描。命令范围课程保持关闭，velocity
-  command 的 debug visualization 已全局关闭，训练和 Play 均不加载远端箭头 USD。
+  `0.02–0.05 m`/`0.01 m` step、slopes `0–0.25`。初始覆盖 level `0–3`，再按 episode 存活和
+  线速度/yaw 跟踪动态升降级，不再使用会误判弧线、反向和命令抵消的终点位移判据。
+- rough 当前从零训练全向 recurrent student：命令范围为 `vx∈[-1,1] m/s`、`vy∈[-0.5,0.5] m/s`、
+  `wz∈[-1,1] rad/s`，50% 环境使用官方航向 P 控制器，其余直接采样 `wz`。关闭 standing command
+  和外部 push，线速度及 yaw rate 跟踪 `std` 均为 `0.4`。actor 仍使用 45D 本体观测和单层 128D
+  GRU，不含高度图；recurrent critic 保留干净高度扫描。命令范围课程保持关闭，velocity command
+  的 debug visualization 已全局关闭，训练和 Play 均不加载远端箭头 USD。
 - recurrent student 已通过 `64 environments × 2 iterations` Docker 冒烟，确认 actor/critic GRU、
   非对称 observation、hidden state 训练和源码状态记录正常；Event Manager 中无 interval push。
 - `sh_dog_baseline` 对齐 Unitree 开源 Go2 velocity 当前启用的速度课程、随机化、奖励、termination
@@ -95,6 +95,15 @@
   `env.yaml` 确认为 `heading_command=true`、全航向目标、`wz=±0.5 rad/s` 和两项跟踪 `std=0.4`。
   task 默认闭环后，heading-hold 固定协议的 `48 episodes × 1 repeat` 回归仍为 `48/48` 存活和穿越，
   平均横向/yaw 漂移 `0.499 m/0.135 rad`，与修改前冻结策略诊断一致。
+- 从零训练的 heading student
+  `2026-08-18_10-54-17_recurrent_student_heading_from_scratch_10k/model_9999.pt` 已收敛：末 1000 轮
+  episode length `990.8/1000`、timeout `98.2%`、terrain level `5.95`、value loss `0.0074`。固定
+  heading-hold 评估为 `192/192` 存活和穿越，level `0/3/6/9` 上下楼全部 `100%`，平均横向/yaw
+  漂移降至 `0.070 m/0.0118 rad`。最长连续力矩裁剪 `0.42 s`、applied 额定超限最长 `0.18 s`、
+  最大旋转过载预算消耗 `0.254%`，具备扩大全向命令的基础。
+- 全向配置已通过 `64 environments × 2 iterations` 随机初始化 Docker 冒烟；初始 terrain mean
+  `1.65`，符合 level `0–3` 均匀采样。全向命令、50% heading、episode tracking curriculum、
+  45D/247D 非对称观测及 GRU128 均正常初始化和更新。
 - 本次 run 未保存 ShDog 源码 commit，只能确认训练参数、checkpoint 和 TensorBoard 记录；后续训练
   需要补齐 ShDog commit、dirty 状态、完整命令和镜像摘要。
 - Docker 评估首次启动曾在 `omni.platforminfo.plugin` 内偶发 segfault；相同配置随后完成最小启动及
@@ -102,12 +111,11 @@
 
 ## 下一步
 
-干净高度图教师暂不重训，10k recurrent student 固定为盲走反射基线，不再扩大 GRU 或按原配置续训。
-下一步从 `2026-08-17_18-03-30_recurrent_student_10k/model_9999.pt` 续训 heading fine-tune 10k：保持
-GRU128、rough 地形、执行器、前进范围、PPO、噪声和地形课程不变，采用 `±0.5 rad/s` yaw authority
-及 `track_ang_vel_z std=0.4`。至少保留 1k/2k/5k/10k checkpoint，并使用同一 heading-hold 固定
-协议检查楼梯穿越率、横向/yaw 漂移、`wz` 跟踪和执行器过载；若前期出现灾难性遗忘，不应等到 10k
-才判断。若 Docker 启动崩溃复现，再保留完整 Kit 日志和 crash dump 分析。
+干净高度图教师和 heading student 暂不重训，均保留为固定基线；不扩大 GRU，也不修改 PPO、奖励、
+噪声、执行器和地形几何。下一步从随机初始化训练 10k 全向 recurrent student，至少保留
+1k/2k/5k/10k checkpoint。前 2k 重点检查新课程是否从 level 0 恢复并持续升级、策略是否通过静止
+逃避命令；后续使用固定协议检查前进楼梯能力，并补充后退、横移、直接 `wz` 和组合命令评估。若
+Docker 启动崩溃复现，再保留完整 Kit 日志和 crash dump 分析。
 
 部署侧与后台训练并行推进但不读取当前 checkpoint：待 heading fine-tune 选定正式 checkpoint 后，在
 训练 Docker 内生成 ONNX，再用 `scripts/package_policy.py` 生成版本化策略包，执行 20 秒 viewer
