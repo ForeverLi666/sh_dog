@@ -64,8 +64,8 @@ rough 任务使用降低难度的官方 terrain generator，环境初始覆盖 l
 线速度/yaw 跟踪动态升降级；该判据不依赖终点位移，适用于全向和弧线运动。actor 使用 45D 本体观测
 和单层 128D GRU，critic 保留 `1.6 m × 1.0 m`、`0.1 m` 分辨率的干净高度扫描。当前命令范围为
 `vx∈[-1,1] m/s`、`vy∈[-0.5,0.5] m/s`、`wz∈[-1,1] rad/s`；50% 环境使用官方航向 P
-控制器，其余直接采样 `wz`。关闭 standing command 和外部 push，线速度及 yaw rate 跟踪 `std`
-均为 `0.4`。训练和 Play 均关闭命令箭头，避免加载远端 USD。使用独立实验目录运行冒烟：
+控制器，其余直接采样 `wz`。`5%` 环境使用 standing command，关闭外部 push，线速度及 yaw rate
+跟踪 `std` 均为 `0.4`。训练和 Play 均关闭命令箭头，避免加载远端 USD。使用独立实验目录运行冒烟：
 
 ```bash
 scripts/training.sh train rough_smoke \

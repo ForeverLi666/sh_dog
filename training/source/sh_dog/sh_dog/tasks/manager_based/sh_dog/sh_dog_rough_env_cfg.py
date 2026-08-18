@@ -94,7 +94,7 @@ class ShDogRoughEnvCfg(ShDogFlatEnvCfg):
         self.scene.height_scanner.update_period = self.decimation * self.sim.dt
         self.scene.terrain.terrain_generator.curriculum = True
         command = self.commands.base_velocity
-        command.rel_standing_envs = 0.0
+        command.rel_standing_envs = 0.05
         command.heading_command = True
         command.heading_control_stiffness = 1.0
         command.rel_heading_envs = 0.5
@@ -122,6 +122,7 @@ class ShDogRoughEnvCfg_PLAY(ShDogRoughEnvCfg):
         self.events.add_base_mass = None
         self.events.push_robot = None
         command = self.commands.base_velocity
+        command.rel_standing_envs = 0.0
         command.rel_heading_envs = 1.0
         command.ranges.lin_vel_x = (1.0, 1.0)
         command.ranges.lin_vel_y = (0.0, 0.0)

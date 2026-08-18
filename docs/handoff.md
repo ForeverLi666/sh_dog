@@ -30,9 +30,9 @@
   `0.02–0.05 m`/`0.01 m` step、slopes `0–0.25`。初始覆盖 level `0–3`，再按 episode 存活和
   线速度/yaw 跟踪动态升降级，不再使用会误判弧线、反向和命令抵消的终点位移判据。
 - rough 当前从零训练全向 recurrent student：命令范围为 `vx∈[-1,1] m/s`、`vy∈[-0.5,0.5] m/s`、
-  `wz∈[-1,1] rad/s`，50% 环境使用官方航向 P 控制器，其余直接采样 `wz`。关闭 standing command
-  和外部 push，线速度及 yaw rate 跟踪 `std` 均为 `0.4`。actor 仍使用 45D 本体观测和单层 128D
-  GRU，不含高度图；recurrent critic 保留干净高度扫描。命令范围课程保持关闭，velocity command
+  `wz∈[-1,1] rad/s`，50% 环境使用官方航向 P 控制器，其余直接采样 `wz`。`5%` 环境使用 standing
+  command，关闭外部 push，线速度及 yaw rate 跟踪 `std` 均为 `0.4`。actor 仍使用 45D 本体观测和
+  单层 128D GRU，不含高度图；recurrent critic 保留干净高度扫描。命令范围课程保持关闭，velocity command
   的 debug visualization 已全局关闭，训练和 Play 均不加载远端箭头 USD。
 - `2026-08-18_17-16-30_recurrent_student_omni_from_scratch_10k/model_9999.pt` 已完成 10000 iterations。
   末 1000 iterations 平均 reward `18.31`、episode length `956.7/1000`、timeout `91.8%`、
@@ -43,8 +43,8 @@
 - 冻结同一 checkpoint 在新复合 collision 下重放同一协议为 `191/192` 存活、`190/192` 穿越，
   平均横向/yaw 漂移 `0.091 m/0.024 rad`。level 9、`0.5 m/s` 上楼提升为 `3/4` 穿越，未出现
   大面积假碰撞退化；该结果只用于 collision 回归，不能替代基于新 collision 的重新训练。
-- 下一轮 full training 暂不加入执行器延迟；建议从零训练 15000 iterations，并将 standing command
-  环境比例设为 `5%`。若 12k–15k 的 bad orientation、terrain level 和固定评估仍持续明显改善，
+- 下一轮 full training 暂不加入执行器延迟；standing command 环境比例已设为 `5%`，建议从零训练
+  15000 iterations。若 12k–15k 的 bad orientation、terrain level 和固定评估仍持续明显改善，
   再延长到 20000；不要同时调整奖励、GRU、课程或执行器模型。
 - recurrent student 已通过 `64 environments × 2 iterations` Docker 冒烟，确认 actor/critic GRU、
   非对称 observation、hidden state 训练和源码状态记录正常；Event Manager 中无 interval push。
