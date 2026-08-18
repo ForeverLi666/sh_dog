@@ -19,8 +19,8 @@ checkpoint、定量诊断和策略导出。
 ## 当前状态
 
 Isaac Lab 子工程已建立 ShDog manager-based 平地速度跟踪任务及最小 RSL-RL PPO 配置。机器人 raw
-资产、规范化 URDF 和 primitive collision 已纳入 `assets/sh_dog/`；策略包和部署 runtime 尚未实现。
-当前进度与下一步见 `docs/handoff.md`。
+资产、规范化 URDF、primitive collision、正式策略包格式、共享 C++ policy runtime 和第一版 MuJoCo
+sim2sim 已建立。当前进度与下一步见 `docs/handoff.md`。
 
 ## 安装扩展
 
@@ -221,6 +221,28 @@ Dockerfile、基础镜像摘要和构建末尾的版本断言共同定义训练�
 和服务器资源属于运行环境，不写入工程。训练日志、Hydra 输出和 checkpoint 写入
 `artifacts/training/`，不混入源码目录；跨环境只导出 `artifacts/policies/` 中的
 TorchScript/ONNX 策略包。
+
+## MuJoCo sim2sim
+
+MuJoCo 模型由规范化 URDF 和 `model.toml` 生成；部署只读取包含 manifest 和 checksum 的正式策略包，
+不读取训练 checkpoint：
+
+```bash
+python scripts/build_mujoco.py
+python scripts/package_policy.py \
+  artifacts/training/logs/rsl_rl/sh_dog_rough/<run>/exported/policy.onnx \
+  artifacts/policies/<policy-name> \
+  --recurrent gru --hidden-size 128
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo
+cmake --build build -j
+ctest --test-dir build --output-on-failure
+./build/sh_dog_sim2sim \
+  artifacts/policies/<policy-name> \
+  assets/sh_dog/mujoco/scene.xml \
+  20 0.5 0.0 0.0 --viewer
+```
+
+策略包契约、无界面运行方式和第一版限制见 `docs/sim2sim.md`。
 
 ## 同步训练服务器
 

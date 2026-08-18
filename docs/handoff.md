@@ -44,6 +44,18 @@
 - `training/scripts/rsl_rl/eval.py` 从 task 生成可重放评估协议，输出逐 episode 指标和汇总结果；
   `scripts/training.sh eval` 提供 Docker 入口。rough 协议固定覆盖 6 类地形、等级 `0/3/6/9` 和
   `0.5/1.0 m/s` 前进命令，并记录前向进度、横向/yaw 漂移及原有力矩诊断。
+- 已建立第一版 MuJoCo sim2sim：`scripts/build_mujoco.py` 从规范化 URDF 和 `model.toml` 生成浮动基座
+  MJCF；`scripts/package_policy.py` 将已有 ONNX 封装为带 manifest/checksum 的正式策略包；
+  `deploy/runtime/` 提供后端无关的 C++ observation、GRU ONNX 推理和 action/PD 处理，
+  `deploy/sim2sim/` 只负责 MuJoCo 状态与关节力矩。
+- 当前生成的 MuJoCo 模型为 `nq=19`、`nv=18`、`nu=12`，总质量 `16.5259735 kg`。启动阶段使用
+  `SH_DOG_STAND_CFG` 对应的站立 PD，进入策略后切换为 `SH_DOG_CFG` 运动 PD。
+- 首次闭环发现 `mj_objectVelocity(..., local=1)` 将角速度表达在 MuJoCo 惯性主轴而非 URDF
+  `base_link`，导致 45D observation 的前三维发生轴交换和符号错误；已改为世界角速度经 link
+  quaternion 逆旋转，与 Isaac Lab `root_ang_vel_b` 对齐。指定 frozen recurrent student 10k 在修正后
+  通过 `vx=0/0.5/1.0 m/s` 各 20 秒 headless 验证，均未倒地；最终 base 高度为
+  `0.375/0.390/0.392 m`。第一版仍使用安全系数后的静态峰值力矩限幅，尚未复现 `ShDogDcMotor`
+  的完整 T-N、热平衡和过载预算。
 - 两套评估均为 21 cases、每 case 8 repeats，共 168 episodes，结果均为 168/168 成功且无 termination。
   randomized 相比 nominal 主要增加 yaw 跟踪和停止恢复误差，但未出现稳定性失效。
 - 逐关节力矩诊断显示 flat nominal/randomized 均没有长期饱和：最坏连续裁剪分别为 `0.14 s` 和
@@ -97,11 +109,20 @@ GRU128、rough 地形、执行器、前进范围、PPO、噪声和地形课程�
 协议检查楼梯穿越率、横向/yaw 漂移、`wz` 跟踪和执行器过载；若前期出现灾难性遗忘，不应等到 10k
 才判断。若 Docker 启动崩溃复现，再保留完整 Kit 日志和 crash dump 分析。
 
+部署侧与后台训练并行推进但不读取当前 checkpoint：待 heading fine-tune 选定正式 checkpoint 后，在
+训练 Docker 内生成 ONNX，再用 `scripts/package_policy.py` 生成版本化策略包，执行 20 秒 viewer
+sim2sim 验收。随后补齐 MuJoCo 侧 RS06 T-N/过载模型并做 Isaac Lab/MuJoCo 同输入定量对齐；通过前
+不接 sim2real。
+
 ## 检查
 
 ```bash
 python scripts/normalize_urdf.py
 python scripts/build_usd.py
+python scripts/build_mujoco.py --check
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo
+cmake --build build -j
+ctest --test-dir build --output-on-failure
 scripts/training.sh build-usd
 python training/scripts/list_envs.py
 python training/scripts/stand.py
