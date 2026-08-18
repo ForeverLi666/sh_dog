@@ -52,34 +52,40 @@ def format_vector(values: list[float]) -> str:
     return " ".join(format_number(float(value)) for value in values)
 
 
-def build_collision(link_name: str, config: dict[str, Any]) -> ET.Element:
+def build_collisions(link_name: str, config: dict[str, Any]) -> list[ET.Element]:
     prefix = None
     role = link_name
     if link_name != "base_link":
         prefix, role = link_name.split("_", maxsplit=1)
         if prefix not in {"fl", "fr", "rl", "rr"}:
             raise ValueError(f"unsupported leg prefix in {link_name}")
-    primitive = config["collision"][role]
-    xyz = [float(value) for value in primitive["xyz"]]
-    rpy = [float(value) for value in primitive.get("rpy", [0.0, 0.0, 0.0])]
-    if prefix is not None:
-        if role == "abad_link" and prefix.startswith("r"):
-            xyz[0] = -xyz[0]
-        if prefix.endswith("r"):
-            xyz[1] = -xyz[1]
+    primitives = config["collision"][role]
+    if not primitives:
+        raise ValueError(f"collision primitives are empty for {link_name}")
 
-    collision = ET.Element("collision")
-    ET.SubElement(collision, "origin", xyz=format_vector(xyz), rpy=format_vector(rpy))
-    geometry = ET.SubElement(collision, "geometry")
-    shape = primitive["shape"]
-    if shape not in SHAPE_ATTRIBUTES:
-        raise ValueError(f"unsupported collision shape for {link_name}: {shape}")
-    attributes = {
-        name: format_vector(primitive[name]) if name == "size" else format_number(float(primitive[name]))
-        for name in SHAPE_ATTRIBUTES[shape]
-    }
-    ET.SubElement(geometry, shape, attributes)
-    return collision
+    collisions = []
+    for index, primitive in enumerate(primitives):
+        xyz = [float(value) for value in primitive["xyz"]]
+        rpy = [float(value) for value in primitive.get("rpy", [0.0, 0.0, 0.0])]
+        if prefix is not None:
+            if role == "abad_link" and prefix.startswith("r"):
+                xyz[0] = -xyz[0]
+            if prefix.endswith("r"):
+                xyz[1] = -xyz[1]
+
+        collision = ET.Element("collision", {"name": f"{link_name}_collision_{index}"})
+        ET.SubElement(collision, "origin", xyz=format_vector(xyz), rpy=format_vector(rpy))
+        geometry = ET.SubElement(collision, "geometry")
+        shape = primitive["shape"]
+        if shape not in SHAPE_ATTRIBUTES:
+            raise ValueError(f"unsupported collision shape for {link_name}: {shape}")
+        attributes = {
+            name: format_vector(primitive[name]) if name == "size" else format_number(float(primitive[name]))
+            for name in SHAPE_ATTRIBUTES[shape]
+        }
+        ET.SubElement(geometry, shape, attributes)
+        collisions.append(collision)
+    return collisions
 
 
 def build_joint_limits(config: dict[str, Any]) -> dict[str, tuple[float, float]]:
@@ -138,13 +144,17 @@ def normalize(config_path: Path, output_dir: Path) -> Path:
         limit.set("velocity", format_number(velocity))
 
     links = robot.findall("link")
+    collision_count = 0
     for link in links:
         link_name = link.get("name")
-        collision = link.find("collision")
-        if link_name is None or collision is None:
+        collisions = link.findall("collision")
+        if link_name is None or not collisions:
             raise ValueError("link is missing a name or collision")
-        link.remove(collision)
-        link.append(build_collision(link_name, config))
+        for collision in collisions:
+            link.remove(collision)
+        generated_collisions = build_collisions(link_name, config)
+        link.extend(generated_collisions)
+        collision_count += len(generated_collisions)
 
     referenced_meshes: set[str] = set()
     for mesh in robot.findall(".//mesh"):
@@ -169,7 +179,7 @@ def normalize(config_path: Path, output_dir: Path) -> Path:
     print("status=generated")
     print(f"actuated_joints={len(actuated_joints)}")
     print(f"default_base_height={config['default_state']['base_height_m']}")
-    print(f"primitive_collisions={len(links)}")
+    print(f"primitive_collisions={collision_count}")
     print(f"unique_meshes={len(referenced_meshes)}")
     return output_urdf
 

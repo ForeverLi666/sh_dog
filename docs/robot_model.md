@@ -115,18 +115,19 @@ abad `25/1`、hip `30/1.2`、knee `40/2`。策略训练、sim2sim 和 sim2real �
 ## 碰撞体状态
 
 正式 collision 由 `assets/sh_dog/model.toml` 定义，生成器按标准腿名前缀完成前后、左右镜像。
-每个 link 使用一个 primitive：
+每个 link 使用一个或多个 primitive；复合碰撞体用于覆盖外壳和完整腿段，同时保持相邻关节附近的
+必要间隙：
 
 | Link | Shape | 设计边界 |
 | --- | --- | --- |
-| `base_link` | box | 覆盖主体，不包含两侧关节外壳 |
-| `*_abad_link` | cylinder | 覆盖电机主体 |
-| `*_hip_link` | box | 覆盖腿段中部，避开相邻关节 |
-| `*_knee_link` | cylinder | 覆盖小腿主体，避开膝关节 |
+| `base_link` | 3 × box | 覆盖中央底盘和前后外壳，不包含两侧关节扫掠空间 |
+| `*_abad_link` | 2 × cylinder | 覆盖电机主体和靠近机身的关节壳体 |
+| `*_hip_link` | cylinder + box | 覆盖髋关节壳体和完整大腿主体 |
+| `*_knee_link` | 2 × cylinder | 分段覆盖带倾角的小腿上下段 |
 | `*_foot_link` | sphere | 匹配足端外形和接触点 |
 
 该拆分参考 [Unitree Go2 官方 URDF](https://github.com/unitreerobotics/unitree_ros/blob/master/robots/go2_description/urdf/go2_description.urdf)
-的 primitive 类型及其缩短腿段 collision 以避免相邻 link 假碰撞的经验，尺寸和 origin 均来自
+的复合 primitive 和避免相邻 link 假碰撞经验，尺寸和 origin 均来自
 ShDog STL 与关节坐标，不复用 Go2 数值。visual 继续使用 STL；质量、惯量、拓扑、关节轴和限位
 不受 collision 生成影响。
 

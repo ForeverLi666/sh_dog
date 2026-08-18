@@ -2,7 +2,9 @@
 
 ## 当前状态
 
-- raw、规范化 URDF、primitive collision 和本地生成 USD 流程已完成。
+- raw、规范化 URDF、复合 primitive collision 和本地生成 USD 流程已完成。当前 collision 共 31 个
+  primitive：base 3 个，每条腿 abad/hip/knee 各 2 个、foot 1 个；URDF、Isaac USD 与 MuJoCo
+  使用同一份 `model.toml` 事实。
 - 当前 raw 模型已更新为 `URDF-V4-test1`：关节拓扑和零位保持不变，CAD 总质量由约 `15.376 kg`
   更新为约 `16.526 kg`，并使用新版 visual meshes；规范化 URDF 和 USD 已重新生成。
 - `model.toml` 是机器人名称、关节顺序、默认站姿、RS06 规格和 collision 的事实来源。
@@ -32,6 +34,18 @@
   和外部 push，线速度及 yaw rate 跟踪 `std` 均为 `0.4`。actor 仍使用 45D 本体观测和单层 128D
   GRU，不含高度图；recurrent critic 保留干净高度扫描。命令范围课程保持关闭，velocity command
   的 debug visualization 已全局关闭，训练和 Play 均不加载远端箭头 USD。
+- `2026-08-18_17-16-30_recurrent_student_omni_from_scratch_10k/model_9999.pt` 已完成 10000 iterations。
+  末 1000 iterations 平均 reward `18.31`、episode length `956.7/1000`、timeout `91.8%`、
+  bad orientation `8.16%`、terrain level `6.15`；reward 和 bad orientation 在 10k 末端仍缓慢改善，
+  yaw 跟踪误差已接近平台。旧单 primitive collision 下的 heading-hold 固定 rough 评估为 `191/192`
+  存活、`187/192` 穿越，平均横向/yaw 漂移 `0.087 m/0.025 rad`。level 9、`0.5 m/s`
+  上楼 4 个回合均存活但只前进 `2.65–2.85 m`，未达到 3 m 穿越阈值；其余上下楼组合全部穿越。
+- 冻结同一 checkpoint 在新复合 collision 下重放同一协议为 `191/192` 存活、`190/192` 穿越，
+  平均横向/yaw 漂移 `0.091 m/0.024 rad`。level 9、`0.5 m/s` 上楼提升为 `3/4` 穿越，未出现
+  大面积假碰撞退化；该结果只用于 collision 回归，不能替代基于新 collision 的重新训练。
+- 下一轮 full training 暂不加入执行器延迟；建议从零训练 15000 iterations，并将 standing command
+  环境比例设为 `5%`。若 12k–15k 的 bad orientation、terrain level 和固定评估仍持续明显改善，
+  再延长到 20000；不要同时调整奖励、GRU、课程或执行器模型。
 - recurrent student 已通过 `64 environments × 2 iterations` Docker 冒烟，确认 actor/critic GRU、
   非对称 observation、hidden state 训练和源码状态记录正常；Event Manager 中无 interval push。
 - `sh_dog_baseline` 对齐 Unitree 开源 Go2 velocity 当前启用的速度课程、随机化、奖励、termination

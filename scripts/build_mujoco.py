@@ -73,27 +73,28 @@ def _add_link_contents(body: ET.Element, link: ET.Element, mesh_assets: ET.Eleme
                 attributes["rgba"] = color.get("rgba")
             ET.SubElement(body, "geom", attributes)
 
-    collision = link.find("collision")
-    if collision is None:
+    collisions = link.findall("collision")
+    if not collisions:
         return
-    attributes = _origin_attributes(collision.find("origin"))
-    attributes.update({"name": f"{link.get('name')}_collision", "class": "collision"})
-    geometry = collision.find("geometry")
-    box = geometry.find("box")
-    cylinder = geometry.find("cylinder")
-    sphere = geometry.find("sphere")
-    if box is not None:
-        attributes.update({"type": "box", "size": _half(box.get("size"))})
-    elif cylinder is not None:
-        attributes.update({
-            "type": "cylinder",
-            "size": f"{cylinder.get('radius')} {float(cylinder.get('length')) / 2.0:.12g}",
-        })
-    elif sphere is not None:
-        attributes.update({"type": "sphere", "size": sphere.get("radius")})
-    else:
-        raise ValueError(f"unsupported collision geometry on {link.get('name')}")
-    ET.SubElement(body, "geom", attributes)
+    for index, collision in enumerate(collisions):
+        attributes = _origin_attributes(collision.find("origin"))
+        attributes.update({"name": f"{link.get('name')}_collision_{index}", "class": "collision"})
+        geometry = collision.find("geometry")
+        box = geometry.find("box")
+        cylinder = geometry.find("cylinder")
+        sphere = geometry.find("sphere")
+        if box is not None:
+            attributes.update({"type": "box", "size": _half(box.get("size"))})
+        elif cylinder is not None:
+            attributes.update({
+                "type": "cylinder",
+                "size": f"{cylinder.get('radius')} {float(cylinder.get('length')) / 2.0:.12g}",
+            })
+        elif sphere is not None:
+            attributes.update({"type": "sphere", "size": sphere.get("radius")})
+        else:
+            raise ValueError(f"unsupported collision geometry on {link.get('name')}")
+        ET.SubElement(body, "geom", attributes)
 
 
 def build(output_dir: Path = OUTPUT_DIR) -> tuple[Path, Path]:

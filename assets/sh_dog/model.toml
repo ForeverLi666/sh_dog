@@ -63,33 +63,65 @@ knee = 2.0
 [normalization.joint_renames]
 fl_foot_joinf = "fl_foot_joint"
 
-# Leg geometry is defined for front-left and mirrored by link prefix.
+# Leg geometry is defined for front-left and mirrored by link prefix. Compound
+# primitives stay slightly inside the visual shell to avoid false contacts.
 
-[collision.base_link]
+[[collision.base_link]]
 shape = "box"
 xyz = [0.0, 0.0, -0.03]
-size = [0.29, 0.142, 0.13]
+size = [0.35, 0.16, 0.125]
 
-[collision.abad_link]
+[[collision.base_link]]
+shape = "box"
+xyz = [0.215, 0.0, -0.025]
+size = [0.09, 0.19, 0.10]
+
+[[collision.base_link]]
+shape = "box"
+xyz = [-0.215, 0.0, -0.025]
+size = [0.09, 0.19, 0.10]
+
+[[collision.abad_link]]
 shape = "cylinder"
 xyz = [0.05877, -0.01225, 0.0]
 rpy = [0.0, 1.57079632679, 0.0]
 radius = 0.046
 length = 0.08
 
-[collision.hip_link]
-shape = "box"
-xyz = [0.0, 0.08215, -0.115]
-size = [0.065, 0.04, 0.11]
-
-[collision.knee_link]
+[[collision.abad_link]]
 shape = "cylinder"
-xyz = [0.0155, 0.0, -0.15]
-rpy = [0.0, -0.1044, 0.0]
-radius = 0.015
-length = 0.14
+xyz = [-0.015, -0.01225, 0.0]
+rpy = [0.0, 1.57079632679, 0.0]
+radius = 0.041
+length = 0.06
 
-[collision.foot_link]
+[[collision.hip_link]]
+shape = "cylinder"
+xyz = [0.0, 0.05, 0.0]
+rpy = [1.57079632679, 0.0, 0.0]
+radius = 0.04
+length = 0.09
+
+[[collision.hip_link]]
+shape = "box"
+xyz = [-0.005, 0.08215, -0.135]
+size = [0.07, 0.034, 0.18]
+
+[[collision.knee_link]]
+shape = "cylinder"
+xyz = [0.0075, 0.0, -0.06]
+rpy = [0.0, -0.124, 0.0]
+radius = 0.014
+length = 0.13
+
+[[collision.knee_link]]
+shape = "cylinder"
+xyz = [0.028, 0.0, -0.17]
+rpy = [0.0, -0.13, 0.0]
+radius = 0.018
+length = 0.15
+
+[[collision.foot_link]]
 shape = "sphere"
 xyz = [-0.0045, 0.0, -0.005]
 radius = 0.0225

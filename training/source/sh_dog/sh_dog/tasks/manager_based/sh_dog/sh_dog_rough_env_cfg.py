@@ -121,10 +121,11 @@ class ShDogRoughEnvCfg_PLAY(ShDogRoughEnvCfg):
         self.events.physics_material.params["restitution_range"] = (0.0, 0.0)
         self.events.add_base_mass = None
         self.events.push_robot = None
-        self.commands.base_velocity.rel_standing_envs = 0.0
-        self.commands.base_velocity.ranges.lin_vel_x = (1.0, 1.0)
-        self.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.0)
-        self.commands.base_velocity.ranges.heading = (0.0, 0.0)
+        command = self.commands.base_velocity
+        command.rel_heading_envs = 1.0
+        command.ranges.lin_vel_x = (1.0, 1.0)
+        command.ranges.lin_vel_y = (0.0, 0.0)
+        command.ranges.heading = (0.0, 0.0)
         self.events.reset_joints.params["velocity_range"] = (0.0, 0.0)
         self.events.reset_base.params["pose_range"] = {
             "x": (0.0, 0.0),
