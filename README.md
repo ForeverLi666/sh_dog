@@ -62,9 +62,10 @@ python training/scripts/rsl_rl/train.py \
 
 rough 任务使用降低难度的官方 terrain generator 和地形课程，环境初始覆盖 level `0–5`，再按前进
 距离动态升降级；actor 使用 45D 本体观测和单层 128D GRU，critic 保留 `1.6 m × 1.0 m`、`0.1 m`
-分辨率的干净高度扫描。当前验证阶段仅采样 `vx=0.5–1.0 m/s`，关闭横移、转向、standing command
-和外部 push，线速度跟踪 `std=0.4`。训练和 Play 均关闭命令箭头，避免加载远端 USD。使用独立实验
-目录运行冒烟：
+分辨率的干净高度扫描。当前 heading fine-tune 保持 `vx=0.5–1.0 m/s`、`vy=0`，启用官方航向
+P 控制器，目标航向覆盖 `[-π, π]`，动态 `wz` 限幅为 `±0.5 rad/s`；关闭 standing command
+和外部 push，线速度及 yaw rate 跟踪 `std` 均为 `0.4`。训练和 Play 均关闭命令箭头，避免加载
+远端 USD。使用独立实验目录运行冒烟：
 
 ```bash
 scripts/training.sh train rough_smoke \
@@ -200,6 +201,21 @@ scripts/training.sh eval \
 结果额外记录地形类型、等级、前向进度、横向漂移和 yaw 漂移；存活且沿初始朝向前进至少 `3 m`
 记为完成穿越。`random_rough` 的官方生成器忽略 difficulty 参数，因此其 level 仅用于覆盖不同地形
 实例，不解释为难度。
+
+可选 heading-hold 诊断使用同一个官方航向 P 控制器，将前进命令开始时的 yaw 固定为目标，并把
+动态 `wz` 命令送入 45D actor。默认 `kp=1.0`、yaw rate 限幅 `0.5 rad/s`；它将训练时的随机
+航向目标替换为可重放的直行基准：
+
+```bash
+scripts/training.sh eval <checkpoint> \
+  --task ShDog-Velocity-Rough-Play \
+  --shm-size 8gb \
+  -- --heading-hold
+```
+
+可通过 `--heading-stiffness` 和 `--heading-max-rate` 覆盖参数。解析后的控制参数会写入
+`protocol.yaml`，可使用原协议重放；逐 episode 结果额外记录 signed lateral/yaw drift、最大航向误差
+以及动态 `wz` 命令用量。
 
 Dockerfile、基础镜像摘要和构建末尾的版本断言共同定义训练软件环境。代理地址、镜像仓库认证
 和服务器资源属于运行环境，不写入工程。训练日志、Hydra 输出和 checkpoint 写入

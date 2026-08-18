@@ -140,10 +140,15 @@ def generate_protocol(
     warmup_s: float = 2.0,
     command_s: float = 8.0,
     recovery_s: float = 2.0,
+    heading_hold: bool = False,
+    heading_stiffness: float = 1.0,
+    heading_max_rate: float = 0.5,
 ) -> dict:
     """Resolve normalized command cases against the task command envelope."""
     if repeats <= 0:
         raise ValueError("repeats must be positive")
+    if heading_hold and (heading_stiffness <= 0.0 or heading_max_rate <= 0.0):
+        raise ValueError("heading stiffness and max rate must be positive")
     step_dt = float(env_cfg.sim.dt * env_cfg.decimation)
     timing = {
         "warmup_s": warmup_s,
@@ -165,6 +170,17 @@ def generate_protocol(
         "command_source": "limit_ranges" if hasattr(env_cfg.commands.base_velocity, "limit_ranges") else "ranges",
         "command_ranges": ranges,
         "timing": timing,
+        **(
+            {
+                "heading_control": {
+                    "mode": "hold_command_start_yaw",
+                    "stiffness": heading_stiffness,
+                    "max_rate": heading_max_rate,
+                }
+            }
+            if heading_hold
+            else {}
+        ),
         **({"traversal_progress_m": ROUGH_TRAVERSAL_PROGRESS_M} if rough else {}),
         "cases": _generate_rough_cases(env_cfg, ranges) if rough else _generate_cases(ranges),
     }
@@ -189,6 +205,12 @@ def load_protocol(path: Path, task: str, step_dt: float) -> dict:
         raise ValueError("protocol seed must be an integer")
     if protocol.get("kind", "flat") == "rough_fixed" and protocol.get("traversal_progress_m", 0.0) <= 0.0:
         raise ValueError("rough protocol traversal_progress_m must be positive")
+    heading_control = protocol.get("heading_control")
+    if heading_control is not None:
+        if heading_control.get("mode") != "hold_command_start_yaw":
+            raise ValueError(f"unsupported heading control mode: {heading_control.get('mode')}")
+        if heading_control.get("stiffness", 0.0) <= 0.0 or heading_control.get("max_rate", 0.0) <= 0.0:
+            raise ValueError("heading stiffness and max rate must be positive")
 
     case_ids = set()
     for case in protocol.get("cases", []):
@@ -313,9 +335,14 @@ class VelocityEvaluation:
         self.sensor_foot_ids, _ = self.contact_sensor.find_bodies(".*_foot_link")
         self.joint_limits = self.robot.data.soft_joint_pos_limits
         self.command_term = env.command_manager.get_term("base_velocity")
+        self.heading_control = protocol.get("heading_control")
+        if self.heading_control is not None and not self.command_term.cfg.heading_command:
+            raise ValueError("heading-control protocol requires a heading-enabled velocity command")
         case_commands = torch.tensor([case["command"] for case in protocol["cases"]], device=env.device)
         self.target_commands = case_commands.repeat_interleave(protocol["repeats"], dim=0)
         self.zero_commands = torch.zeros_like(self.target_commands)
+        self.step_commands = torch.zeros_like(self.target_commands)
+        self.heading_target_set = False
         self.active = torch.ones(self.num_envs, dtype=torch.bool, device=env.device)
         self.previous_actions = torch.zeros((self.num_envs, num_actions), device=env.device)
         self.steps_alive = torch.zeros(self.num_envs, device=env.device)
@@ -332,6 +359,9 @@ class VelocityEvaluation:
         self.command_forward_progress = torch.zeros(self.num_envs, device=env.device)
         self.command_lateral_drift = torch.zeros(self.num_envs, device=env.device)
         self.command_yaw_drift = torch.zeros(self.num_envs, device=env.device)
+        self.heading_error_abs_max = torch.zeros(self.num_envs, device=env.device)
+        self.heading_wz_command_abs_sum = torch.zeros(self.num_envs, device=env.device)
+        self.heading_wz_command_abs_max = torch.zeros(self.num_envs, device=env.device)
         self.tilt_sq = torch.zeros(self.num_envs, device=env.device)
         self.tilt_max = torch.zeros(self.num_envs, device=env.device)
         self.height_sum = torch.zeros(self.num_envs, device=env.device)
@@ -370,13 +400,22 @@ class VelocityEvaluation:
         }
 
     def apply_commands(self, step: int) -> None:
-        commands = (
-            self.target_commands if protocol_phase(step, self.protocol["timing"]) == "command" else self.zero_commands
-        )
-        self.command_term.vel_command_b[:] = commands
         self.command_term.is_standing_env[:] = False
-        if hasattr(self.command_term, "is_heading_env"):
+        if protocol_phase(step, self.protocol["timing"]) != "command":
+            self.command_term.vel_command_b[:] = self.zero_commands
             self.command_term.is_heading_env[:] = False
+        elif self.heading_control is None:
+            self.command_term.vel_command_b[:] = self.target_commands
+            self.command_term.is_heading_env[:] = False
+        else:
+            self.command_term.vel_command_b[:, :2] = self.target_commands[:, :2]
+            self.command_term.is_heading_env[:] = True
+            if not self.heading_target_set:
+                self.command_term.heading_target[:] = _yaw(self.robot.data.root_quat_w)
+                # Public command-term update applies the official heading controller before the first command step.
+                self.command_term.compute(dt=0.0)
+                self.heading_target_set = True
+        self.step_commands[:] = self.command_term.vel_command_b
 
     @staticmethod
     def _masked_add(target: torch.Tensor, values: torch.Tensor, mask: torch.Tensor) -> None:
@@ -401,7 +440,7 @@ class VelocityEvaluation:
             dim=1,
         )
         if phase == "command":
-            error = measured_velocity - self.target_commands
+            error = measured_velocity - self.step_commands
             self.target_count += sample_mask
             self._masked_add(self.track_abs, error.abs(), sample_mask)
             self._masked_add(self.track_sq, error.square(), sample_mask)
@@ -422,6 +461,15 @@ class VelocityEvaluation:
             self.command_forward_progress = torch.where(sample_mask, forward, self.command_forward_progress)
             self.command_lateral_drift = torch.where(sample_mask, lateral, self.command_lateral_drift)
             self.command_yaw_drift = torch.where(sample_mask, yaw_drift, self.command_yaw_drift)
+            self.heading_error_abs_max = torch.maximum(
+                self.heading_error_abs_max, torch.where(sample_mask, yaw_drift.abs(), torch.zeros_like(yaw_drift))
+            )
+            wz_command_abs = self.step_commands[:, 2].abs()
+            self.heading_wz_command_abs_sum += wz_command_abs * sample_mask
+            self.heading_wz_command_abs_max = torch.maximum(
+                self.heading_wz_command_abs_max,
+                torch.where(sample_mask, wz_command_abs, torch.zeros_like(wz_command_abs)),
+            )
         elif phase == "recovery":
             self.recovery_count += sample_mask
             self._masked_add(self.recovery_abs, measured_velocity.abs(), sample_mask)
@@ -562,8 +610,15 @@ class VelocityEvaluation:
                 "success": not reasons and bool(self.active[env_index].item()),
                 "termination_reasons": ",".join(reasons),
                 "command_forward_progress_m": float(self.command_forward_progress[env_index].item()),
+                "command_lateral_drift_m": float(self.command_lateral_drift[env_index].item()),
                 "command_lateral_drift_abs_m": abs(float(self.command_lateral_drift[env_index].item())),
+                "command_yaw_drift_rad": float(self.command_yaw_drift[env_index].item()),
                 "command_yaw_drift_abs_rad": abs(float(self.command_yaw_drift[env_index].item())),
+                "heading_error_abs_max_rad": float(self.heading_error_abs_max[env_index].item()),
+                "heading_wz_command_abs_mean": _value(
+                    self.heading_wz_command_abs_sum, self.target_count, env_index
+                ),
+                "heading_wz_command_abs_max": float(self.heading_wz_command_abs_max[env_index].item()),
             }
             if case.get("terrain") is not None:
                 row["traversal_success"] = (
@@ -694,6 +749,9 @@ def summarize(rows: list[dict], cases: list[dict]) -> dict:
         "command_forward_progress_m",
         "command_lateral_drift_abs_m",
         "command_yaw_drift_abs_rad",
+        "heading_error_abs_max_rad",
+        "heading_wz_command_abs_mean",
+        "heading_wz_command_abs_max",
         "recovery_vx_abs_mean",
         "recovery_vy_abs_mean",
         "recovery_wz_abs_mean",

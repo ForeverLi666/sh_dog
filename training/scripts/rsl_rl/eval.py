@@ -39,6 +39,23 @@ parser.add_argument("--warmup-s", type=float, default=None, help="Zero-command w
 parser.add_argument("--command-s", type=float, default=None, help="Target-command duration (default: 8.0).")
 parser.add_argument("--recovery-s", type=float, default=None, help="Zero-command recovery (default: 2.0).")
 parser.add_argument("--seed", type=int, default=None, help="Evaluation seed (default: 42).")
+parser.add_argument(
+    "--heading-hold",
+    action="store_true",
+    help="Hold command-start yaw with the task's heading controller during the command phase.",
+)
+parser.add_argument(
+    "--heading-stiffness",
+    type=float,
+    default=None,
+    help="Heading-error proportional gain (default with --heading-hold: 1.0).",
+)
+parser.add_argument(
+    "--heading-max-rate",
+    type=float,
+    default=None,
+    help="Absolute heading-controller yaw-rate limit in rad/s (default with --heading-hold: 0.5).",
+)
 cli_args.add_rsl_rl_args(parser)
 AppLauncher.add_app_launcher_args(parser)
 args_cli, hydra_args = parser.parse_known_args()
@@ -47,9 +64,21 @@ if args_cli.checkpoint is None:
     parser.error("--checkpoint is required")
 if args_cli.protocol is not None and any(
     value is not None
-    for value in (args_cli.repeats, args_cli.warmup_s, args_cli.command_s, args_cli.recovery_s, args_cli.seed)
+    for value in (
+        args_cli.repeats,
+        args_cli.warmup_s,
+        args_cli.command_s,
+        args_cli.recovery_s,
+        args_cli.seed,
+        args_cli.heading_stiffness,
+        args_cli.heading_max_rate,
+    )
 ):
-    parser.error("protocol timing, repeats, and seed cannot be overridden when --protocol is used")
+    parser.error("protocol timing, repeats, seed, and heading control cannot be overridden when --protocol is used")
+if args_cli.protocol is not None and args_cli.heading_hold:
+    parser.error("--heading-hold cannot override a replayed protocol")
+if not args_cli.heading_hold and (args_cli.heading_stiffness is not None or args_cli.heading_max_rate is not None):
+    parser.error("--heading-stiffness and --heading-max-rate require --heading-hold")
 
 original_argv = sys.argv.copy()
 sys.argv = [sys.argv[0]] + hydra_args
@@ -97,6 +126,9 @@ def main(env_cfg, agent_cfg: RslRlBaseRunnerCfg) -> None:
             warmup_s=args_cli.warmup_s if args_cli.warmup_s is not None else 2.0,
             command_s=args_cli.command_s if args_cli.command_s is not None else 8.0,
             recovery_s=args_cli.recovery_s if args_cli.recovery_s is not None else 2.0,
+            heading_hold=args_cli.heading_hold,
+            heading_stiffness=args_cli.heading_stiffness if args_cli.heading_stiffness is not None else 1.0,
+            heading_max_rate=args_cli.heading_max_rate if args_cli.heading_max_rate is not None else 0.5,
         )
     )
     total_steps = sum(protocol["timing"][key] for key in ("warmup_steps", "command_steps", "recovery_steps"))
@@ -118,7 +150,18 @@ def main(env_cfg, agent_cfg: RslRlBaseRunnerCfg) -> None:
     env_cfg.commands.base_velocity.resampling_time_range = (1.0e9, 1.0e9)
     env_cfg.commands.base_velocity.ranges.lin_vel_x = (0.0, 0.0)
     env_cfg.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.0)
-    env_cfg.commands.base_velocity.ranges.ang_vel_z = (0.0, 0.0)
+    heading_control = protocol.get("heading_control")
+    if heading_control is None:
+        env_cfg.commands.base_velocity.heading_command = False
+        env_cfg.commands.base_velocity.ranges.ang_vel_z = (0.0, 0.0)
+    else:
+        max_rate = heading_control["max_rate"]
+        env_cfg.commands.base_velocity.heading_command = True
+        env_cfg.commands.base_velocity.heading_control_stiffness = heading_control["stiffness"]
+        env_cfg.commands.base_velocity.rel_heading_envs = 1.0
+        env_cfg.commands.base_velocity.ranges.ang_vel_z = (-max_rate, max_rate)
+        # Evaluation sets the actual target to command-start yaw after the environment is created.
+        env_cfg.commands.base_velocity.ranges.heading = (0.0, 0.0)
 
     checkpoint = Path(retrieve_file_path(args_cli.checkpoint)).resolve()
     task_slug = args_cli.task.replace(":", "_").replace("/", "_")

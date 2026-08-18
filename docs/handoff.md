@@ -27,10 +27,11 @@
 - rough 地形使用官方比例和几何，降低为 stairs `0.05–0.16 m`、boxes `0.05–0.10 m`、random rough
   `0.02–0.05 m`/`0.01 m` step、slopes `0–0.25`。启用官方基于前进距离的地形课程，初始覆盖
   level `0–5`，成功后动态升到更高等级。
-- rough 当前用于 recurrent student 前进上楼验证：仅采样 `vx=0.5–1.0 m/s`，`vy/wz=0`，关闭
-  standing command、heading command 和外部 push，并将线速度跟踪 `std` 收紧为 `0.4`。actor 使用
-  45D 本体观测和单层 128D GRU，不含高度图；recurrent critic 保留干净高度扫描。命令范围课程保持
-  关闭，velocity command 的 debug visualization 已全局关闭，训练和 Play 均不加载远端箭头 USD。
+- rough 当前从 10k recurrent student 做 heading fine-tune：保持 `vx=0.5–1.0 m/s`、`vy=0`，启用
+  官方航向 P 控制器，目标航向覆盖 `[-π, π]`，动态 `wz` 限幅为 `±0.5 rad/s`；关闭 standing
+  command 和外部 push，线速度及 yaw rate 跟踪 `std` 均为 `0.4`。actor 仍使用 45D 本体观测和
+  单层 128D GRU，不含高度图；recurrent critic 保留干净高度扫描。命令范围课程保持关闭，velocity
+  command 的 debug visualization 已全局关闭，训练和 Play 均不加载远端箭头 USD。
 - recurrent student 已通过 `64 environments × 2 iterations` Docker 冒烟，确认 actor/critic GRU、
   非对称 observation、hidden state 训练和源码状态记录正常；Event Manager 中无 interval push。
 - `sh_dog_baseline` 对齐 Unitree 开源 Go2 velocity 当前启用的速度课程、随机化、奖励、termination
@@ -66,6 +67,22 @@
 - 教师固定评估中 `ShDogDcMotor` 最长连续裁剪为 `0.42 s`，最大 applied 额定超限连续时间为
   `0.14 s`，最坏保守堵转预算消耗为 `5.17%`；level 9 上楼存在明显降额但仍全部通过，未见持续
   峰值力矩或预算耗尽主导行为。
+- recurrent student 从 `model_2999.pt` 原配置续训至 `model_9999.pt` 后基本收敛：末 2000 iterations
+  平均 episode length 约 `990/1000 steps`、timeout 约 `98.1%`、平均 terrain level 稳定约 `6.01`。
+  固定 rough 评估为 `191/192` 存活且完成穿越，level `0/3/6/9` 上下楼均达到 `100%`；唯一失败为
+  level 6、`1.0 m/s` 下楼接近 episode 末段的 bad orientation，首次碰阶恢复问题已经解决。
+- 10k student 以直线性换取了上楼存活率：固定评估平均横向/yaw 漂移为 `0.479 m/0.158 rad`；
+  level 9、`1.0 m/s` 上楼虽 `4/4` 穿越，但平均横向/yaw 漂移达到 `3.32 m/0.712 rad`。高速上楼
+  所有 repeat 都存在约 `-0.04` 至 `-0.11 rad/s` 的同向 yaw rate bias，不是随机失稳或过载耗尽。
+- 评估入口已支持可重放的 `--heading-hold`，使用 Isaac Lab 官方 heading P 控制器保持命令开始时
+  航向，并记录动态 `wz`、signed drift 和最大 heading error。冻结 10k student 在 `kp=1.0`、yaw
+  rate 限幅 `0.5/0.2 rad/s` 下均为 `192/192` 穿越，但平均横漂分别为 `0.501/0.491 m`，平均 yaw
+  仅降至 `0.137/0.142 rad`；level 9 高速上楼仍为 `3.62 m/0.645 rad` 和 `3.45 m/0.677 rad`。
+  策略没有训练过非零 `wz`，无法直接用外部 heading loop 修复，需要从 10k checkpoint fine-tune。
+- heading fine-tune 已从 `model_9999.pt` 完成 `64 environments × 2 iterations` Docker 冒烟；保存的
+  `env.yaml` 确认为 `heading_command=true`、全航向目标、`wz=±0.5 rad/s` 和两项跟踪 `std=0.4`。
+  task 默认闭环后，heading-hold 固定协议的 `48 episodes × 1 repeat` 回归仍为 `48/48` 存活和穿越，
+  平均横向/yaw 漂移 `0.499 m/0.135 rad`，与修改前冻结策略诊断一致。
 - 本次 run 未保存 ShDog 源码 commit，只能确认训练参数、checkpoint 和 TensorBoard 记录；后续训练
   需要补齐 ShDog commit、dirty 状态、完整命令和镜像摘要。
 - Docker 评估首次启动曾在 `omni.platforminfo.plugin` 内偶发 segfault；相同配置随后完成最小启动及
@@ -73,12 +90,12 @@
 
 ## 下一步
 
-干净高度图教师暂不重训，保留为仿真上限。下一步对当前 recurrent student 做 3000 iterations 前进
-训练，并使用固定 rough 协议比较教师与学生的穿越率、漂移和执行器用量；若学习明显不足，再引入教师
-蒸馏。heading、横移、转向和外部 push 暂不同时加入，先区分缺少前视地形与航向漂移的影响。正式
-启动训练前同步源码和新版 USD；训练 run 应保存当前 ShDog commit、dirty 状态和完整命令。第一轮不
-因结果不理想同时调整 GRU 维度、奖励或课程，先判断 128D GRU 是否已经形成有效盲走反射。
-若 Docker 启动崩溃复现，再保留完整 Kit 日志和 crash dump 分析。
+干净高度图教师暂不重训，10k recurrent student 固定为盲走反射基线，不再扩大 GRU 或按原配置续训。
+下一步从 `2026-08-17_18-03-30_recurrent_student_10k/model_9999.pt` 续训 heading fine-tune 10k：保持
+GRU128、rough 地形、执行器、前进范围、PPO、噪声和地形课程不变，采用 `±0.5 rad/s` yaw authority
+及 `track_ang_vel_z std=0.4`。至少保留 1k/2k/5k/10k checkpoint，并使用同一 heading-hold 固定
+协议检查楼梯穿越率、横向/yaw 漂移、`wz` 跟踪和执行器过载；若前期出现灾难性遗忘，不应等到 10k
+才判断。若 Docker 启动崩溃复现，再保留完整 Kit 日志和 crash dump 分析。
 
 ## 检查
 
